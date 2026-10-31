@@ -2648,6 +2648,8 @@
 #vista-prog .barra-acciones #btn-prog-guardar { background: #1e5a3a; }
 #vista-prog .barra-acciones #btn-prog-guardar:hover { background: #16462d; }
 #vista-prog.modo-original-prog td[data-code] select { pointer-events: none; opacity: 0.95; }
+/* Vista inicial: celda que cambió desde la programación inicial */
+#vista-prog.modo-original-prog td.prog-dif-ini { box-shadow: inset 0 0 0 3px #0f766e; }
 #vista-prog #prog-estado-guardado,
 #vista-prog #prog-badge-vista {
   flex: 1 1 14rem;
@@ -14838,6 +14840,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         ' — los cambios se pueden guardar en este navegador.';
     } catch (e) {}
     try { pintarEstadoProgCajeros(); } catch (e) {}
+    try { if (typeof window._progRefrescarVistaInicial === 'function') window._progRefrescarVistaInicial(); } catch (e) {}
   }
 
   function cerrarProgramacionSept() {
@@ -14945,18 +14948,28 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       el.classList.remove('ok');
       el.textContent = 'Hay cambios — podés pulsar 💾 Guardar para confirmar el snapshot.';
     }
+    /** Código de la versión INICIAL del mes para una celda (la del PDF) */
+    function valorInicialCelda(td) {
+      try { return (function () { const im = infoTablaDeElemento(td); return codigoProgInicial(td.getAttribute('data-legajo'), td.getAttribute('data-dia'), im.mes, im.anio); })() || ''; } catch (e) { return ''; }
+    }
+    // usarOriginal = ver la programación INICIAL del mes (solo lectura); marca lo que cambió desde entonces
     function aplicarValoresAGrilla(usarOriginal) {
+      let difs = 0;
       root.querySelectorAll('td[data-code]').forEach(function (td) {
         const select = td.querySelector('select');
         if (!select) return;
-        const original = td.getAttribute('data-code') || "";
-        const val = usarOriginal ? original : valorCelda(td);
+        const actual = valorCelda(td);
+        const val = usarOriginal ? valorInicialCelda(td) : actual;
+        const dif = !!usarOriginal && String(val || '').toUpperCase() !== String(actual || '').toUpperCase();
+        td.classList.toggle('prog-dif-ini', dif);
+        if (dif) { td.setAttribute('data-actual', actual || '—'); if (td.offsetParent !== null) difs++; } else td.removeAttribute('data-actual');
         setSelectValue(select, val);
         aplicarClase(td, val);
         const sinSesion = (typeof puedeModificarTablero === 'function' && !puedeModificarTablero());
         select.disabled = !!usarOriginal || sinSesion;
       });
       try { actualizarTotalesHEProg(); } catch (e) {}
+      window._progDifsInicial = difs;
     }
     function guardarProgramacion() {
       if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) {
@@ -14993,6 +15006,19 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         el.textContent = '✅ Guardado (' + n + ' celdas) — ' + new Date().toLocaleString('es-AR');
       }
     }
+    function pintarBadgeInicial() {
+      const badge = root.querySelector('#prog-badge-vista');
+      if (!badge || !viendoOriginal) return;
+      badge.style.display = 'inline';
+      badge.textContent = 'Vista: INICIAL (solo lectura) · ' + (window._progDifsInicial || 0) +
+        ' celda(s) cambiaron desde entonces (marcadas en verde)';
+    }
+    // Para recontar al cambiar de mes estando en la vista inicial
+    window._progRefrescarVistaInicial = function () {
+      if (!viendoOriginal) return;
+      aplicarValoresAGrilla(true);
+      pintarBadgeInicial();
+    };
     function toggleVerOriginal() {
       const btn = root.querySelector('#btn-prog-ver-original');
       const badge = root.querySelector('#prog-badge-vista');
@@ -15006,7 +15032,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         }
         if (badge) {
           badge.style.display = 'inline';
-          badge.textContent = 'Vista: ORIGINAL (solo lectura)';
+          pintarBadgeInicial();
         }
         // Los 3 botones permanecen visibles en la misma posición
         const bg = root.querySelector('#btn-prog-guardar');
@@ -15016,7 +15042,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       } else {
         aplicarValoresAGrilla(false);
         if (btn) {
-          btn.textContent = '👁 Ver original';
+          btn.textContent = '👁 Ver inicial';
           btn.classList.remove('activo-vista');
         }
         if (badge) {
@@ -15042,7 +15068,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         root.classList.remove('modo-original-prog');
         const btn = root.querySelector('#btn-prog-ver-original');
         if (btn) {
-          btn.textContent = '👁 Ver original';
+          btn.textContent = '👁 Ver inicial';
           btn.classList.remove('activo-vista');
         }
         const badge = root.querySelector('#prog-badge-vista');
@@ -15153,6 +15179,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       root.querySelectorAll('td[data-code]').forEach(crearSelect);
       const sinSesion = (typeof puedeModificarTablero === 'function' && !puedeModificarTablero());
       root.querySelectorAll('td[data-code] select').forEach(function (s) { s.disabled = viendoOriginal || sinSesion; });
+      if (viendoOriginal) aplicarValoresAGrilla(true);
       bindHeadersFeriadosProg();
       try { pintarHeadersFeriadosProg(); } catch (e) {}
       try { actualizarTotalesHEProg(); } catch (e) {}
@@ -15343,7 +15370,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
   <div class="prog-botones">
     <button type="button" id="btn-prog-colores" title="Colores de códigos en Programación">🎨</button>
     <button type="button" id="btn-prog-guardar" title="Guardar todos los cambios en este navegador">💾</button>
-    <button type="button" id="btn-prog-ver-original" title="Ver la programación original sin perder tus cambios">👁</button>
+    <button type="button" id="btn-prog-ver-original" title="Ver la programación inicial del mes (solo lectura), sin perder tus cambios">👁</button>
     <button type="button" id="btn-reset" title="Solo administrador: borrar cambios y volver a los valores originales">↺</button>
   </div>
   <span class="nota-guardado" id="prog-estado-guardado">Los cambios se pueden guardar en este navegador.</span>
@@ -15654,7 +15681,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026103101', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026103102', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
