@@ -2773,6 +2773,10 @@
     z-index: 1;
   }
 
+  /* Celda con cambio de un cajero (vista CJ de Cajeros): triangulito violeta */
+  #vista-prog td[data-cj] { position: relative; }
+  #vista-prog td[data-cj]::after { content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0;
+    border-top: 7px solid #9333ea; border-left: 7px solid transparent; pointer-events: none; }
   th.col-he-prog, td.he-prog-total {
     width: 52px;
     min-width: 48px;
@@ -2921,7 +2925,7 @@
           <button class="btn btn-cierre" onclick="cierreFinalFecha()" title="Cierre final de la fecha">🔒</button>
           <button class="btn btn-resumen-jornada" id="btnResumenJornada" onclick="abrirResumenJornada()" title="Resumen de la jornada (hoja Jefes)" style="display:none">📋</button>
           <button class="btn btn-informe-jefes" id="btnInformeJefes" onclick="abrirPanelInformeJefes()" title="Informe de jefes (texto libre)" style="display:none;background:#00695c">📝</button>
-          <button class="btn btn-prog btn-solo-cabina" id="btnProgSept" onclick="abrirProgramacionSept()" title="Programación Septiembre / Octubre 2026" style="background:#c45c26;display:none">📅</button>
+          <button class="btn btn-prog btn-solo-cabina" id="btnProgSept" onclick="abrirProgramacionSept()" title="Programación (desde Cajeros)" style="background:#c45c26;display:none">📅</button>
           <button class="btn btn-full" onclick="imprimirHojaActual()" title="Imprimir hoja actual (Cabina o Jefes)">🖨</button>
           <button class="btn btn-full" onclick="compartirHojaActual()" title="Compartir hoja actual como imagen">📤</button>
           <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa">⛶</button>
@@ -3259,23 +3263,502 @@
   }
 
   /** Mapa legajo → código de la Programación Septiembre para un día (respeta localStorage) */
-  function mapaProgramacionDelDia(dia) {
-    const map = {};
-    const d = String(dia);
-    let mesJs = 8;
+  /* ===================================================================
+   * PROGRAMACIÓN DESDE CAJEROS (vista CJ)
+   * La base de cada mes sale de la app Cajeros:
+   *   - Programación oficial: <mes>-<año>.json del repo Cuadraditos-VP/CAJEROS
+   *   - Cambios de los cajeros: colección "cj_cajeros" de Firebase (último cambio de cada celda)
+   *   - Feriados: los publicados en Firebase ("cajeros/<mes>") o, si no hay, los del JSON
+   *   - Inicial (para HE programadas): la semilla del PDF cargada en Cajeros
+   * Cada mes de Cajeros se arma como una tabla más dentro de #vista-prog.
+   * Las tablas fijas de septiembre/octubre 2026 quedan como copia del PDF (versión inicial).
+   * Lo que se corrige a mano en Control VP (localStorage) siempre pisa a lo que viene de Cajeros.
+   * =================================================================== */
+  const PROG_MES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const CAJ_RAW_BASE = 'https://raw.githubusercontent.com/Cuadraditos-VP/CAJEROS/main/';
+  const CAJ_FS_BASE = 'https://firestore.googleapis.com/v1/projects/programacioncajeros-a7420/databases/(default)/documents';
+  const CAJ_FS_KEY = 'AIzaSyDYijmzeeKObIRGbNkIsbsGzoonJilnBHc';
+  const LS_PROG_CAJEROS = 'tablero_prog_cajeros_v1';
+  const LS_PROG_INICIAL = 'tablero_prog_inicial_';   // + 'AAAA-MM': copia congelada si Cajeros no trae inicial
+  const CAJ_HTML_CADA_MS = 30 * 60 * 1000;           // el HTML de Cajeros (semillas) se relee cada 30 min
+  const PROG_CAJ = {};        // 'AAAA-MM' → { mes, anio, people, grupos, codigos, oficial, cambios, inicial, feriados, codList }
+  const PROG_ESTATICO = {};   // 'AAAA-MM' → { legajo: códigos } de las tablas fijas (sep/oct 2026, del PDF)
+  let progCajerosEstado = { ok: false, cjOk: null, cjError: '', actualizado: 0, cambios: 0, error: '' };
+
+  function claveMesProg(mes, anio) { return anio + '-' + String(mes + 1).padStart(2, '0'); }
+  /** id de tabla ('sept' | 'oct' | 'AAAA-MM') → { mes, anio } */
+  function infoDeIdTablaProg(id) {
+    if (id === 'sept') return { mes: 8, anio: 2026 };
+    if (id === 'oct') return { mes: 9, anio: 2026 };
+    const m = /^(\d{4})-(\d{2})$/.exec(String(id || ''));
+    return m ? { mes: Number(m[2]) - 1, anio: Number(m[1]) } : null;
+  }
+  /** Año del mes (0-11): el de los datos cargados más cercano a hoy; si no hay, el más cercano a hoy */
+  function anioDeMesProg(mes) {
+    const hoy = new Date(), idxHoy = hoy.getFullYear() * 12 + hoy.getMonth();
+    const cands = Object.keys(PROG_CAJ).map(infoDeIdTablaProg).filter(function (x) { return x && x.mes === mes; })
+      .map(function (x) { return x.anio; });
+    if ((mes === 8 || mes === 9) && document.getElementById(mes === 8 ? 'tabla-programacion-sept' : 'tabla-programacion-oct')) cands.push(2026);
+    if (cands.length) {
+      return cands.sort(function (a, b) { return Math.abs(a * 12 + mes - idxHoy) - Math.abs(b * 12 + mes - idxHoy); })[0];
+    }
+    let anio = hoy.getFullYear();
+    const dif = mes - hoy.getMonth();
+    if (dif > 6) anio--;
+    if (dif < -6) anio++;
+    return anio;
+  }
+  function diasDelMesProg(mes, anio) { return new Date(anio || anioDeMesProg(mes), mes + 1, 0).getDate(); }
+  function nombreMesProg(mes, anio) {
+    const n = PROG_MES_NOMBRES[mes] || '';
+    return n.charAt(0).toUpperCase() + n.slice(1) + ' ' + (anio || anioDeMesProg(mes));
+  }
+  /** Prefijo localStorage de las correcciones hechas en Control VP para ese mes */
+  function prefijoProgMes(mes, anio) {
+    anio = anio || anioDeMesProg(mes);
+    if (anio === 2026 && mes === 8) return 'progSept2026_';
+    if (anio === 2026 && mes === 9) return 'progOct2026_';
+    return 'prog' + claveMesProg(mes, anio) + '_';
+  }
+  /** id de la tabla que muestra ese mes (o null) */
+  function idTablaProgMes(mes, anio) {
+    anio = anio || anioDeMesProg(mes);
+    const key = claveMesProg(mes, anio);
+    if (document.getElementById('tabla-programacion-' + key)) return key;
+    if (anio === 2026 && mes === 8 && document.getElementById('tabla-programacion-sept')) return 'sept';
+    if (anio === 2026 && mes === 9 && document.getElementById('tabla-programacion-oct')) return 'oct';
+    return null;
+  }
+  function hayProgMes(mes, anio) { return !!idTablaProgMes(mes, anio); }
+  /** Tablas de programación presentes, ordenadas: [{ id, mes, anio }] */
+  function tablasProgDisponibles() {
+    return Array.prototype.slice.call(document.querySelectorAll('#vista-prog table[data-prog-mes]'))
+      .map(function (t) { const id = t.getAttribute('data-prog-mes'); const i = infoDeIdTablaProg(id); return i ? { id: id, mes: i.mes, anio: i.anio } : null; })
+      .filter(Boolean)
+      .sort(function (a, b) { return (a.anio * 12 + a.mes) - (b.anio * 12 + b.mes); });
+  }
+  function infoTablaDeElemento(el) {
+    const tab = el && el.closest ? el.closest('table[data-prog-mes]') : null;
+    return (tab && infoDeIdTablaProg(tab.getAttribute('data-prog-mes'))) || { mes: 8, anio: 2026 };
+  }
+
+  /** Versión INICIAL (base de las HE programadas): semilla de Cajeros > tabla fija del PDF > primera oficial vista */
+  function codigoProgInicial(legajo, dia, mes, anio) {
+    anio = anio || anioDeMesProg(mes);
+    const key = claveMesProg(mes, anio);
+    const leg = String(legajo || '').trim();
+    const src = (PROG_CAJ[key] && PROG_CAJ[key].inicial) || PROG_ESTATICO[key];
+    const arr = src && src[leg];
+    return arr ? String(arr[parseInt(dia, 10) - 1] || '').trim().toUpperCase() : '';
+  }
+
+  // Firestore REST → valores JS
+  function fsValor(v) {
+    if (!v || typeof v !== 'object') return null;
+    if ('stringValue' in v) return v.stringValue;
+    if ('integerValue' in v) return Number(v.integerValue);
+    if ('doubleValue' in v) return Number(v.doubleValue);
+    if ('booleanValue' in v) return !!v.booleanValue;
+    if ('nullValue' in v) return null;
+    if ('arrayValue' in v) return ((v.arrayValue && v.arrayValue.values) || []).map(fsValor);
+    if ('mapValue' in v) {
+      const out = {};
+      const f = (v.mapValue && v.mapValue.fields) || {};
+      Object.keys(f).forEach(function (k) { out[k] = fsValor(f[k]); });
+      return out;
+    }
+    return null;
+  }
+  function fsDoc(doc) { return fsValor({ mapValue: { fields: (doc && doc.fields) || {} } }) || {}; }
+
+  /** Programación del mes = oficial + último cambio de algún cajero en cada celda (igual que la vista CJ de Cajeros) */
+  function armarProgCj(oficial, cjDocs, dias) {
+    const latest = {};
+    (cjDocs || []).forEach(function (doc) {
+      const edits = doc && doc.edits;
+      if (!edits || typeof edits !== 'object') return;
+      Object.keys(edits).forEach(function (k) {
+        const e = edits[k];
+        if (!e) return;
+        const t = Number(e.t) || 0;
+        if (!latest[k] || t > latest[k].t) latest[k] = { c: String(e.c || '').trim().toUpperCase(), t: t };
+      });
+    });
+    const codigos = {}, cambios = {};
+    oficial.forEach(function (p) {
+      const arr = [];
+      for (let i = 0; i < dias; i++) arr.push(String((p.codes || [])[i] || '').trim().toUpperCase());
+      codigos[p.id] = arr;
+    });
+    Object.keys(latest).forEach(function (k) {
+      const cut = k.lastIndexOf(':');
+      const id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+      const arr = codigos[id];
+      if (!arr || !(di >= 0 && di < dias)) return;
+      if (latest[k].c === arr[di]) return;
+      arr[di] = latest[k].c;
+      cambios[id + ':' + di] = 1;
+    });
+    return { codigos: codigos, cambios: cambios };
+  }
+
+  /** Lee del HTML de Cajeros las semillas de cada mes (la programación inicial cargada del PDF) */
+  function parsearSemillasCajeros(html) {
+    const out = {};
+    const m = /const\s+SEED_BY_MES\s*=\s*\{([^}]*)\}/.exec(html || '');
+    if (!m) return out;
+    const re = /"(\d{4}-\d{2})"\s*:\s*([A-Za-z_$][\w$]*)/g;
+    let x;
+    while ((x = re.exec(m[1]))) {
+      const key = x[1], nombre = x[2];
+      const ini = html.indexOf('const ' + nombre + ' = [');
+      if (ini < 0) continue;
+      const fin = html.indexOf('];', ini);
+      if (fin < 0) continue;
+      const seg = html.slice(ini, fin);
+      const reP = /id:\s*"(\d+)"[^}]*?codes:\s*(\[[^\]]*\])/g;
+      const people = {};
+      let hayCodigos = false, p;
+      while ((p = reP.exec(seg))) {
+        try {
+          const codes = JSON.parse(p[2]).map(function (c) { return String(c || '').trim().toUpperCase(); });
+          if (codes.some(Boolean)) hayCodigos = true;
+          people[p[1]] = codes;
+        } catch (e) {}
+      }
+      // La semilla solo sirve si trae turnos (la de octubre es un molde vacío), igual que en Cajeros
+      if (hayCodigos) out[key] = people;
+    }
+    return out;
+  }
+
+  function cargarCacheProgCajeros() {
     try {
-      const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-      if (info && typeof info.mes === 'number') mesJs = info.mes;
-    } catch (e) {}
-    const pref = (typeof prefijoProgPorMesJs === 'function') ? prefijoProgPorMesJs(mesJs) : 'progSept2026_';
-    const tab = (typeof tablaProgPorMesJs === 'function') ? tablaProgPorMesJs(mesJs) : null;
-    const root = tab || document.getElementById('vista-prog') || document;
-    // 1) Celdas de la grilla de programación (data-code / select)
-    root.querySelectorAll('td[data-code][data-dia="' + d + '"]').forEach(function (td) {
+      const c = JSON.parse(localStorage.getItem(LS_PROG_CAJEROS) || 'null');
+      return (c && c.meses && typeof c.meses === 'object') ? c : null;
+    } catch (e) { return null; }
+  }
+
+  /** Copia de las tablas fijas (sep/oct 2026, cargadas del PDF): sirven de versión inicial */
+  function extraerTablasEstaticasProg() {
+    ['sept', 'oct'].forEach(function (id) {
+      const tab = document.getElementById('tabla-programacion-' + id);
+      const i = infoDeIdTablaProg(id);
+      if (!tab || !i) return;
+      const key = claveMesProg(i.mes, i.anio);
+      if (PROG_ESTATICO[key]) return;
+      const out = {};
+      tab.querySelectorAll('td[data-code][data-legajo][data-dia]').forEach(function (td) {
+        const leg = td.getAttribute('data-legajo'), d = parseInt(td.getAttribute('data-dia'), 10);
+        if (!out[leg]) out[leg] = [];
+        out[leg][d - 1] = String(td.getAttribute('data-code') || '').trim().toUpperCase();
+      });
+      PROG_ESTATICO[key] = out;
+    });
+  }
+
+  function escHtmlProg(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  /** Arma (o rearma) la tabla de un mes de Cajeros con el mismo formato que las tablas fijas */
+  function construirTablaCajeros(key) {
+    const d = PROG_CAJ[key];
+    const scroll = document.querySelector('#vista-prog .tabla-scroll');
+    if (!d || !scroll) return;
+    const dias = diasDelMesProg(d.mes, d.anio);
+    const dow = ['DO', 'LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
+    let head = '<tr class="dia-header"><th class="col-legajo">Legajo</th><th class="col-nombre">Apellido y nombre</th>';
+    for (let i = 1; i <= dias; i++) head += '<th>' + dow[new Date(d.anio, d.mes, i).getDay()] + '<br>' + i + '</th>';
+    head += '<th class="col-he-prog" title="Horas extra programadas del mes">HE</th></tr>';
+    // Grupos como en Cajeros (si no vienen, uno solo)
+    let grupos = Array.isArray(d.grupos) && d.grupos.length ? d.grupos : [{ name: 'Cajeros', count: d.people.length }];
+    let html = '', idx = 0;
+    grupos.forEach(function (g, gi) {
+      const cant = (gi === grupos.length - 1) ? d.people.length - idx : Math.max(0, Number(g.count) || 0);
+      const gente = d.people.slice(idx, idx + cant);
+      idx += cant;
+      if (!gente.length) return;
+      html += '<tr class="grupo-header"><td colspan="' + (dias + 3) + '">' + escHtmlProg(String(g.name || ('Grupo ' + (gi + 1))).toUpperCase()) + '</td></tr>';
+      html += head;
+      gente.forEach(function (p) {
+        const arr = d.codigos[p.id] || [];
+        const ofi = d.oficial[p.id] || [];
+        html += '<tr><td class="legajo-cell">' + escHtmlProg(p.id) + '</td><td class="nombre-cell">' + escHtmlProg(p.name || p.id) + '</td>';
+        for (let i = 1; i <= dias; i++) {
+          const cod = escHtmlProg(arr[i - 1] || '');
+          let extra = '';
+          if (d.cambios[p.id + ':' + (i - 1)]) {
+            extra = ' data-cj="1" title="Cambio del cajero (oficial: ' + escHtmlProg(ofi[i - 1] || '—') + ')"';
+          }
+          html += '<td data-code="' + cod + '" data-legajo="' + escHtmlProg(p.id) + '" data-dia="' + i + '"' + extra + '></td>';
+        }
+        html += '<td class="he-prog-total" data-legajo-he="' + escHtmlProg(p.id) + '" title="Total HE programadas">—</td></tr>';
+      });
+    });
+    const id = 'tabla-programacion-' + key;
+    let tab = document.getElementById(id);
+    if (!tab) {
+      tab = document.createElement('table');
+      tab.id = id;
+      tab.className = 'tabla-prog-mes';
+      tab.setAttribute('data-prog-mes', key);
+      tab.style.display = (window._progMesActivo === key) ? '' : 'none';
+      scroll.appendChild(tab);
+    }
+    tab.innerHTML = '<colgroup><col style="width:54px"><col style="width:200px"><col span="' + dias + '" style="width:' +
+      (91.5 / dias).toFixed(2) + '%"></colgroup><thead></thead><tbody>' + html + '</tbody>';
+    // Octubre 2026 de Cajeros reemplaza a la tabla fija (que ya quedó guardada como inicial)
+    if (key === '2026-10') {
+      const viejo = document.getElementById('tabla-programacion-oct');
+      if (viejo) {
+        if (window._progMesActivo === 'oct') { window._progMesActivo = key; tab.style.display = ''; }
+        viejo.parentNode.removeChild(viejo);
+      }
+    }
+  }
+
+  /** Botones de mes (los últimos 4 con programación) */
+  function renderTabsProg() {
+    const cont = document.querySelector('#vista-prog .prog-mes-tabs');
+    if (!cont) return;
+    const colores = ['#c45c26', '#5c6bc0', '#2e7d32', '#6a1b9a', '#8b2e2e'];
+    cont.innerHTML = '';
+    tablasProgDisponibles().slice(-4).forEach(function (x) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'btn-prog-mes-' + x.id;
+      b.className = 'btn prog-mes-btn' + (window._progMesActivo === x.id ? ' activo' : '');
+      b.style.cssText = 'background:' + colores[(x.anio * 12 + x.mes) % colores.length] +
+        ';min-width:auto;padding:8px 14px;font-size:0.95rem;opacity:' + (window._progMesActivo === x.id ? '1' : '0.75');
+      b.textContent = nombreMesProg(x.mes, x.anio);
+      b.addEventListener('click', function () { cambiarMesProgramacion(x.id); });
+      cont.appendChild(b);
+    });
+  }
+
+  /** Vuelca los meses de Cajeros en PROG_CAJ y arma sus tablas */
+  function aplicarProgCajeros(cache) {
+    if (!cache || !cache.meses) return;
+    extraerTablasEstaticasProg();
+    Object.keys(cache.meses).sort().forEach(function (key) {
+      const m = cache.meses[key];
+      if (!m || !Array.isArray(m.people) || !m.people.length) return;
+      const i = infoDeIdTablaProg(key);
+      const dias = diasDelMesProg(i.mes, i.anio);
+      const r = armarProgCj(m.people, m.cj || [], dias);
+      const oficial = {};
+      m.people.forEach(function (p) {
+        oficial[p.id] = (p.codes || []).map(function (c) { return String(c || '').trim().toUpperCase(); });
+      });
+      // Inicial: semilla / "inicial" del JSON > tabla fija del PDF > primera oficial vista (congelada)
+      let inicial = (m.inicial && Object.keys(m.inicial).length) ? m.inicial : null;
+      if (!inicial && PROG_ESTATICO[key]) inicial = PROG_ESTATICO[key];
+      if (!inicial) {
+        try { inicial = JSON.parse(localStorage.getItem(LS_PROG_INICIAL + key) || 'null'); } catch (e) {}
+        if (!inicial || typeof inicial !== 'object') {
+          inicial = oficial;
+          try { localStorage.setItem(LS_PROG_INICIAL + key, JSON.stringify(oficial)); } catch (e) {}
+        }
+      }
+      PROG_CAJ[key] = {
+        mes: i.mes, anio: i.anio,
+        people: m.people.map(function (p) { return { id: p.id, name: p.name }; }),
+        grupos: m.grupos || null,
+        codigos: r.codigos, oficial: oficial, cambios: r.cambios, inicial: inicial,
+        feriados: (m.feriados || []).map(Number).filter(function (d) { return d >= 1 && d <= dias; }),
+        codList: (m.codigos || []).map(function (c) { return String(c || '').trim().toUpperCase(); }).filter(Boolean)
+      };
+      construirTablaCajeros(key);
+    });
+    renderTabsProg();
+    try { if (typeof window._progPrepararTablas === 'function') window._progPrepararTablas(); } catch (e) { console.warn(e); }
+  }
+
+  async function fetchJsonProg(url, opts) {
+    const r = await fetch(url, Object.assign({ cache: 'no-store' }, opts || {}));
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    return r.json();
+  }
+  /** Meses a pedir a Cajeros: 2 antes y 2 después del mes actual (desde octubre 2026) */
+  function mesesACargarProg() {
+    const hoy = new Date();
+    const base = hoy.getFullYear() * 12 + hoy.getMonth();
+    const out = [];
+    for (let i = base - 2; i <= base + 2; i++) {
+      if (i < 2026 * 12 + 9) continue;
+      out.push({ mes: i % 12, anio: Math.floor(i / 12) });
+    }
+    return out;
+  }
+
+  let progCajerosCargando = null;
+  function actualizarProgDesdeCajeros() {
+    if (progCajerosCargando) return progCajerosCargando;
+    progCajerosCargando = (async function () {
+      const anterior = cargarCacheProgCajeros() || { meses: {} };
+      const meses = {};
+      // 1) Programación oficial (JSON del repo de Cajeros)
+      await Promise.all(mesesACargarProg().map(async function (x) {
+        const key = claveMesProg(x.mes, x.anio);
+        try {
+          const d = await fetchJsonProg(CAJ_RAW_BASE + PROG_MES_NOMBRES[x.mes] + '-' + x.anio + '.json?t=' + Date.now());
+          if (!d || !Array.isArray(d.people) || !d.people.length) return;
+          meses[key] = {
+            people: d.people.map(function (p) { return { id: String(p.id || ''), name: p.name || '', codes: Array.isArray(p.codes) ? p.codes : String(p.codes || '').split(/\s+/) }; })
+              .filter(function (p) { return p.id; }),
+            grupos: Array.isArray(d.grupos) ? d.grupos.map(function (g) { return { name: g.name, count: g.count }; }) : null,
+            feriados: Array.isArray(d.feriados) ? d.feriados : [],
+            codigos: Array.isArray(d.codigos) ? d.codigos : [],
+            cj: []
+          };
+          if (Array.isArray(d.inicial) && d.inicial.length) {
+            const ini = {};
+            d.inicial.forEach(function (p) {
+              if (p && p.id) ini[String(p.id)] = (Array.isArray(p.codes) ? p.codes : String(p.codes || '').split(/\s+/))
+                .map(function (c) { return String(c || '').trim().toUpperCase(); });
+            });
+            meses[key].inicialJson = ini;
+          }
+        } catch (e) {
+          // 404 = ese mes todavía no existe; otro error (sin red) = se queda la copia anterior
+          if (!(e && e.status === 404) && anterior.meses[key]) meses[key] = anterior.meses[key];
+        }
+      }));
+      const keys = Object.keys(meses);
+      if (!keys.length) throw new Error('No se pudo leer la programación de Cajeros');
+      // 1b) Programación INICIAL: semillas del HTML de Cajeros
+      let semillas = anterior.semillas || {};
+      let semillasAt = anterior.semillasAt || 0;
+      if (Date.now() - semillasAt > CAJ_HTML_CADA_MS) {
+        try {
+          const r = await fetch(CAJ_RAW_BASE + 'index.html?t=' + Date.now(), { cache: 'no-store' });
+          if (r.ok) { semillas = parsearSemillasCajeros(await r.text()); semillasAt = Date.now(); }
+        } catch (e) {}
+      }
+      keys.forEach(function (k) {
+        if (!('inicial' in meses[k]) || meses[k].inicialJson) meses[k].inicial = semillas[k] || meses[k].inicialJson || null;
+        delete meses[k].inicialJson;
+      });
+      // 2) Feriados publicados en Firebase (pisan a los del JSON)
+      await Promise.all(keys.map(async function (key) {
+        try {
+          const d = fsDoc(await fetchJsonProg(CAJ_FS_BASE + '/cajeros/' + key + '?key=' + CAJ_FS_KEY));
+          if (Array.isArray(d.feriados)) meses[key].feriados = d.feriados;
+        } catch (e) {}
+      }));
+      // 3) Cambios de los cajeros (vista CJ)
+      let cjOk = true, cjError = '';
+      keys.forEach(function (k) { meses[k].cj = []; });
+      try {
+        const body = { structuredQuery: {
+          from: [{ collectionId: 'cj_cajeros' }],
+          where: { fieldFilter: { field: { fieldPath: 'mes' }, op: 'IN',
+            value: { arrayValue: { values: keys.map(function (k) { return { stringValue: k }; }) } } } }
+        } };
+        const res = await fetchJsonProg(CAJ_FS_BASE + ':runQuery?key=' + CAJ_FS_KEY, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        (Array.isArray(res) ? res : []).forEach(function (row) {
+          if (!row || !row.document) return;
+          const d = fsDoc(row.document);
+          if (d.mes && meses[d.mes] && d.edits) meses[d.mes].cj.push({ edits: d.edits });
+        });
+      } catch (e) {
+        cjOk = false;
+        cjError = (e && (e.status === 403 || e.status === 401)) ? 'sin permiso' : 'sin conexión';
+        keys.forEach(function (k) { if (anterior.meses[k] && anterior.meses[k].cj) meses[k].cj = anterior.meses[k].cj; });
+      }
+      const cache = { actualizado: Date.now(), cjOk: cjOk, cjError: cjError, meses: meses, semillas: semillas, semillasAt: semillasAt };
+      const cambio = JSON.stringify(anterior.meses) !== JSON.stringify(meses);
+      try { localStorage.setItem(LS_PROG_CAJEROS, JSON.stringify(cache)); } catch (e) {}
+      if (cambio || !Object.keys(PROG_CAJ).length) aplicarProgCajeros(cache);
+      actualizarEstadoProgCajeros(cache);
+      try { if (typeof sincronizarVisperaDesdeProg === 'function') sincronizarVisperaDesdeProg(); } catch (e) {}
+      return cache;
+    })().catch(function (e) {
+      progCajerosEstado.error = 'sin conexión';
+      console.warn('Programación Cajeros:', e);
+      pintarEstadoProgCajeros();
+    }).finally(function () { progCajerosCargando = null; });
+    return progCajerosCargando;
+  }
+
+  function actualizarEstadoProgCajeros(cache) {
+    let n = 0;
+    Object.keys(PROG_CAJ).forEach(function (k) { n += Object.keys(PROG_CAJ[k].cambios || {}).length; });
+    progCajerosEstado = {
+      ok: !!(cache && cache.meses && Object.keys(cache.meses).length),
+      cjOk: cache ? cache.cjOk : null, cjError: cache ? (cache.cjError || '') : '',
+      actualizado: cache ? cache.actualizado : 0, cambios: n, error: ''
+    };
+    pintarEstadoProgCajeros();
+  }
+  function pintarEstadoProgCajeros() {
+    let el = document.getElementById('prog-fuente-cajeros');
+    if (!el) {
+      const ref = document.getElementById('prog-estado-guardado');
+      if (!ref || !ref.parentNode) return;
+      el = document.createElement('span');
+      el.id = 'prog-fuente-cajeros';
+      el.className = 'nota-guardado';
+      el.style.fontSize = '0.78rem';
+      ref.parentNode.appendChild(el);
+    }
+    const st = progCajerosEstado;
+    let txt, color = '#2e7d32';
+    if (!st.ok) {
+      txt = '⚠ No se pudo leer Cajeros' + (st.error ? ' (' + st.error + ')' : '') + ' — se usa lo guardado';
+      color = '#b71c1c';
+    } else {
+      const h = st.actualizado ? new Date(st.actualizado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+      txt = 'Fuente: Cajeros (CJ) · ' + st.cambios + ' cambio(s) de cajeros · ' + h;
+      if (st.cjOk === false) {
+        txt += ' · ⚠ cambios de cajeros ' + (st.cjError === 'sin permiso' ? 'sin permiso de lectura' : 'no actualizados');
+        color = '#b26a00';
+      }
+      if (st.error) { txt += ' · ⚠ ' + st.error; color = '#b26a00'; }
+    }
+    el.textContent = txt;
+    el.style.color = color;
+  }
+
+  // Arranque: primero la copia guardada (instantáneo), después Cajeros en segundo plano
+  function iniciarProgCajeros() {
+    try {
+      extraerTablasEstaticasProg();
+      const c0 = cargarCacheProgCajeros();
+      if (c0) { aplicarProgCajeros(c0); actualizarEstadoProgCajeros(c0); }
+      else renderTabsProg();
+    } catch (e) { console.warn('prog cajeros', e); }
+    setTimeout(function () { actualizarProgDesdeCajeros(); }, 300);
+    setInterval(function () { if (!document.hidden) actualizarProgDesdeCajeros(); }, 3 * 60 * 1000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) actualizarProgDesdeCajeros(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarProgCajeros);
+  else setTimeout(iniciarProgCajeros, 0);
+
+  /** Mapa legajo → código para un día (mes de la fecha del tablero, o el indicado). Cruza de mes. */
+  function mapaProgramacionDelDia(dia, mesOpt, anioOpt) {
+    const map = {};
+    let mes0 = mesOpt, anio0 = anioOpt;
+    if (mes0 == null) {
+      try {
+        const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
+        if (info) { mes0 = info.mes; anio0 = info.anio; }
+      } catch (e) {}
+    }
+    if (mes0 == null) mes0 = new Date().getMonth();
+    if (anio0 == null) anio0 = anioDeMesProg(mes0);
+    const f = new Date(anio0, mes0, parseInt(dia, 10));
+    const mesJs = f.getMonth(), anio = f.getFullYear(), d = String(f.getDate());
+    const pref = prefijoProgMes(mesJs, anio);
+    const tab = tablaProgPorMesJs(mesJs, anio);
+    if (!tab) return map;
+    // 1) Celdas de la grilla de programación (corrección guardada / select / base)
+    tab.querySelectorAll('td[data-code][data-dia="' + d + '"]').forEach(function (td) {
       const leg = td.getAttribute('data-legajo');
       if (!leg) return;
-      const key = pref + leg + '_' + d;
-      const guardado = localStorage.getItem(key);
+      const guardado = localStorage.getItem(pref + leg + '_' + d);
       let codigo = '';
       if (guardado !== null) {
         codigo = String(guardado).trim().toUpperCase();
@@ -3286,15 +3769,14 @@
       }
       map[leg] = codigo;
     });
-    // 2) Fallback: claves sueltas en localStorage (por si la grilla no está en el DOM)
+    // 2) Correcciones sueltas en localStorage de ese mes
     try {
-      const pref = 'progSept2026_';
       const suf = '_' + d;
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k || k.indexOf(pref) !== 0 || !k.endsWith(suf)) continue;
         const mid = k.slice(pref.length, k.length - suf.length);
-        if (!mid || map[mid] !== undefined) continue;
+        if (!/^\d+$/.test(mid) || map[mid] !== undefined) continue;
         const val = localStorage.getItem(k);
         if (val != null) map[mid] = String(val).trim().toUpperCase();
       }
@@ -3416,13 +3898,10 @@
     let mapaHoy = {};
     let mapaManana = {};
     let usarPrioridad = false;
-    if (info && (info.mes === 8 || info.mes === 9) && turno) {
-      mapaHoy = mapaProgramacionDelDia(info.dia);
-      // Día siguiente (solo dentro de septiembre 1–30)
-      var maxDia = (info.mes === 9) ? 30 : 29;
-      if (info.dia >= 1 && info.dia <= maxDia) {
-        mapaManana = mapaProgramacionDelDia(info.dia + 1);
-      }
+    if (info && turno && hayProgMes(info.mes, info.anio)) {
+      mapaHoy = mapaProgramacionDelDia(info.dia, info.mes, info.anio);
+      // Día siguiente (si es fin de mes, el 1 del mes siguiente)
+      mapaManana = mapaProgramacionDelDia(info.dia + 1, info.mes, info.anio);
       usarPrioridad = Object.keys(mapaHoy).length > 0;
     }
 
@@ -3665,80 +4144,84 @@
   const LS_FERIADOS_PROG_OCT = 'progOct2026_feriados';
 
   function _mesProgActivoJs() {
-    return (window._progMesActivo === 'oct') ? 9 : 8;
-  }
-  function _mesJsDeFechaTablero() {
-    try {
-      const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-      if (info && info.anio === 2026 && (info.mes === 8 || info.mes === 9)) return info.mes;
-    } catch (e) {}
-    return null;
+    const i = infoDeIdTablaProg(window._progMesActivo || 'sept');
+    return i ? i.mes : 8;
   }
   function _mesFeriadoValido(mesJs) {
     const m = parseInt(mesJs, 10);
-    if (m === 8 || m === 9) return m;
+    if (m >= 0 && m <= 11) return m;
     return _mesProgActivoJs();
   }
-  function _claveFeriados(mesJs) {
-    return _mesFeriadoValido(mesJs) === 9 ? LS_FERIADOS_PROG_OCT : LS_FERIADOS_PROG;
+  /** Clave de feriados marcados a mano en Control VP (sep/oct 2026 conservan las de siempre) */
+  function _claveFeriados(mesJs, anio) {
+    const m = _mesFeriadoValido(mesJs);
+    anio = anio || anioDeMesProg(m);
+    if (anio === 2026 && m === 8) return LS_FERIADOS_PROG;
+    if (anio === 2026 && m === 9) return LS_FERIADOS_PROG_OCT;
+    return 'progFeriados_' + claveMesProg(m, anio);
   }
-  function _diasDelMesProg(mesJs) {
-    return _mesFeriadoValido(mesJs) === 9 ? 31 : 30;
+  function _diasDelMesProg(mesJs, anio) {
+    const m = _mesFeriadoValido(mesJs);
+    return diasDelMesProg(m, anio || anioDeMesProg(m));
   }
 
-  function cargarFeriadosProg(mesJs) {
+  /** Feriados del mes: los marcados en Control VP; si nunca se marcaron, los de Cajeros */
+  function cargarFeriadosProg(mesJs, anio) {
     const m = _mesFeriadoValido(mesJs);
-    const max = _diasDelMesProg(m);
-    try {
-      const a = JSON.parse(localStorage.getItem(_claveFeriados(m)) || '[]');
-      if (!Array.isArray(a)) return [];
-      return a.map(function (n) { return parseInt(n, 10); })
-        .filter(function (d) { return d >= 1 && d <= max; });
-    } catch (e) { return []; }
+    anio = anio || anioDeMesProg(m);
+    const max = _diasDelMesProg(m, anio);
+    let a = null;
+    try { a = JSON.parse(localStorage.getItem(_claveFeriados(m, anio)) || 'null'); } catch (e) { a = null; }
+    if (!Array.isArray(a)) {
+      const c = PROG_CAJ[claveMesProg(m, anio)];
+      a = c ? c.feriados : [];
+    }
+    return a.map(function (n) { return parseInt(n, 10); })
+      .filter(function (d) { return d >= 1 && d <= max; });
   }
-  function guardarFeriadosProg(dias, mesJs) {
+  function guardarFeriadosProg(dias, mesJs, anio) {
     const m = _mesFeriadoValido(mesJs);
-    const max = _diasDelMesProg(m);
+    anio = anio || anioDeMesProg(m);
+    const max = _diasDelMesProg(m, anio);
     try {
       const uniq = Array.from(new Set((dias || []).map(function (n) { return parseInt(n, 10); })
         .filter(function (d) { return d >= 1 && d <= max; }))).sort(function (a, b) { return a - b; });
-      localStorage.setItem(_claveFeriados(m), JSON.stringify(uniq));
+      localStorage.setItem(_claveFeriados(m, anio), JSON.stringify(uniq));
     } catch (e) {}
   }
-  function esFeriadoProg(dia, mesJs) {
-    return cargarFeriadosProg(mesJs).indexOf(parseInt(dia, 10)) >= 0;
+  function esFeriadoProg(dia, mesJs, anio) {
+    return cargarFeriadosProg(mesJs, anio).indexOf(parseInt(dia, 10)) >= 0;
   }
-  /** Víspera = el día SIGUIENTE es feriado. Un feriado NO es víspera salvo que el día siguiente también lo sea. */
-  function esVisperaPorProg(dia, mesJs) {
+  /** Víspera = el día SIGUIENTE es feriado (cruza de mes: 31/10 es víspera si el 1/11 es feriado). */
+  function esVisperaPorProg(dia, mesJs, anio) {
     const m = _mesFeriadoValido(mesJs);
+    anio = anio || anioDeMesProg(m);
     const d = parseInt(dia, 10);
-    const max = _diasDelMesProg(m);
-    if (!d || d < 1 || d > max) return false;
-    if (d < max) return esFeriadoProg(d + 1, m);
-    // último día del mes: 30/9 es víspera si 1/10 es feriado
-    if (m === 8) return esFeriadoProg(1, 9);
-    return false;
+    if (!d || d < 1 || d > _diasDelMesProg(m, anio)) return false;
+    const sig = new Date(anio, m, d + 1);
+    return esFeriadoProg(sig.getDate(), sig.getMonth(), sig.getFullYear());
   }
-  function toggleFeriadoProg(dia, mesJs) {
+  function toggleFeriadoProg(dia, mesJs, anio) {
     if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) {
       alert('Sin sesión no se pueden marcar feriados.');
       return;
     }
     const m = _mesFeriadoValido(mesJs);
+    anio = anio || anioDeMesProg(m);
     const d = parseInt(dia, 10);
-    if (!d || d < 1 || d > _diasDelMesProg(m)) return;
-    const arr = cargarFeriadosProg(m);
+    if (!d || d < 1 || d > _diasDelMesProg(m, anio)) return;
+    const arr = cargarFeriadosProg(m, anio);
     const i = arr.indexOf(d);
     if (i >= 0) arr.splice(i, 1); else arr.push(d);
-    guardarFeriadosProg(arr, m);
+    guardarFeriadosProg(arr, m, anio);
     try { if (typeof window.pintarHeadersFeriadosProg === 'function') window.pintarHeadersFeriadosProg(); } catch (e) {}
     try { if (typeof sincronizarVisperaDesdeProg === 'function') sincronizarVisperaDesdeProg(); } catch (e) {}
   }
   function sincronizarVisperaDesdeProg() {
     try {
       const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-      if (!info || (info.mes !== 8 && info.mes !== 9) || info.anio !== 2026) return;
-      visperaFeriado = !!esVisperaPorProg(info.dia, info.mes);
+      if (!info || !hayProgMes(info.mes, info.anio)) return;
+      visperaFeriado = !!esVisperaPorProg(info.dia, info.mes, info.anio);
       if (typeof sincronizarVisperaEnJornada === 'function') sincronizarVisperaEnJornada();
       if (typeof actualizarBotonVispera === 'function') actualizarBotonVispera();
       if (typeof actualizarLeyendaHorarios === 'function') actualizarLeyendaHorarios();
@@ -3936,8 +4419,8 @@
   function obtenerTipoHorarioDia() {
     try {
       const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-      if (info && (info.mes === 8 || info.mes === 9) && info.anio === 2026) {
-        if (esVisperaPorProg(info.dia, info.mes)) return 'finde';
+      if (info && hayProgMes(info.mes, info.anio)) {
+        if (esVisperaPorProg(info.dia, info.mes, info.anio)) return 'finde';
       }
     } catch (e) {}
     if (visperaFeriado) return 'finde';
@@ -4087,8 +4570,8 @@
     let vf = false;
     try {
       const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-      if (info && (info.mes === 8 || info.mes === 9) && info.anio === 2026 && typeof esVisperaPorProg === 'function') {
-        vf = !!esVisperaPorProg(info.dia, info.mes);
+      if (info && hayProgMes(info.mes, info.anio) && typeof esVisperaPorProg === 'function') {
+        vf = !!esVisperaPorProg(info.dia, info.mes, info.anio);
       } else {
         // Fuera de sept-2026 (sin grilla de prog): respetar flag guardado si existiera
         vf = !!(data && data.visperaFeriado);
@@ -5338,8 +5821,8 @@
     const esJueves = day === 4;
     let esFeriado = !!(opts && opts.feriado);
     try {
-      if (!esFeriado && d && d.getFullYear() === 2026 && (d.getMonth() === 8 || d.getMonth() === 9)) {
-        esFeriado = esFeriadoProg(d.getDate(), d.getMonth());
+      if (!esFeriado && d) {
+        esFeriado = esFeriadoProg(d.getDate(), d.getMonth(), d.getFullYear());
       }
     } catch (e) {}
 
@@ -5388,7 +5871,7 @@
    * Siempre usa data-code de la grilla (programación base), NO los cambios actuales
    * en localStorage ni el valor del select. Sirve para HE programadas.
    */
-  function codigoProgramacionMes(legajo, dia, mesJsOpt) {
+  function codigoProgramacionMes(legajo, dia, mesJsOpt, anioOpt) {
     const leg = String(legajo || '').trim();
     const d = String(dia);
     if (!leg || !d) return '';
@@ -5400,9 +5883,8 @@
       } catch (e0) {}
     }
     try {
-      const tab = (typeof tablaProgPorMesJs === 'function') ? tablaProgPorMesJs(mesJs) : null;
-      const root = tab || document.getElementById('vista-prog') || document;
-      const td = root.querySelector('td[data-code][data-legajo="' + leg + '"][data-dia="' + d + '"]');
+      const tab = tablaProgPorMesJs(mesJs, anioOpt);
+      const td = tab ? tab.querySelector('td[data-code][data-legajo="' + leg + '"][data-dia="' + d + '"]') : null;
       if (td) {
         return String(td.getAttribute('data-code') || '').trim().toUpperCase();
       }
@@ -5414,7 +5896,7 @@
    * Código ACTUAL (con ediciones) del mes — localStorage / select / data-code.
    * No usar para HE programadas.
    */
-    function codigoProgramacionMesActual(legajo, dia, mesJsOpt) {
+    function codigoProgramacionMesActual(legajo, dia, mesJsOpt, anioOpt) {
     const leg = String(legajo || '').trim();
     const d = String(dia);
     if (!leg || !d) return '';
@@ -5425,21 +5907,21 @@
         if (info && typeof info.mes === 'number') mesJs = info.mes;
       } catch (eM) {}
     }
-    const key = ((typeof prefijoProgPorMesJs === 'function') ? prefijoProgPorMesJs(mesJs) : 'progSept2026_') + leg + '_' + d;
+    const key = prefijoProgPorMesJs(mesJs, anioOpt) + leg + '_' + d;
     try {
       const guardado = localStorage.getItem(key);
       if (guardado !== null) return String(guardado).trim().toUpperCase();
     } catch (e) {}
-    return codigoProgramacionMes(legajo, dia, mesJs);
+    return codigoProgramacionMes(legajo, dia, mesJs, anioOpt);
   }
 
-  function prefijoProgPorMesJs(mesJs) {
-    // mesJs: 0=ene ... 8=sept, 9=oct
-    if (mesJs === 9) return 'progOct2026_';
-    return 'progSept2026_';
+  function prefijoProgPorMesJs(mesJs, anio) {
+    // mesJs: 0=ene ... 8=sept, 9=oct (sep/oct 2026 conservan sus claves de siempre)
+    return prefijoProgMes(mesJs, anio);
   }
-  function tablaProgPorMesJs(mesJs) {
-    return document.getElementById(mesJs === 9 ? 'tabla-programacion-oct' : 'tabla-programacion-sept');
+  function tablaProgPorMesJs(mesJs, anio) {
+    const id = idTablaProgMes(mesJs, anio);
+    return id ? document.getElementById('tabla-programacion-' + id) : null;
   }
 
   function fechaProgSept2026(dia) {
@@ -5573,7 +6055,7 @@
     // Si la grilla no está en DOM, recolectar legajos desde localStorage
     if (!Object.keys(legNombres).length) {
       try {
-        ['progSept2026_', 'progOct2026_'].forEach(function (pref) {
+        tablasProgDisponibles().map(function (x) { return prefijoProgMes(x.mes, x.anio); }).forEach(function (pref) {
           for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
             if (!k || k.indexOf(pref) !== 0 || k.indexOf('SNAPSHOT') >= 0) continue;
@@ -5588,7 +6070,7 @@
     }
     // Recolectar legajos también de octubre (localStorage)
     try {
-      ['progSept2026_', 'progOct2026_'].forEach(function (pref) {
+      tablasProgDisponibles().map(function (x) { return prefijoProgMes(x.mes, x.anio); }).forEach(function (pref) {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
           if (!k || k.indexOf(pref) !== 0 || k.indexOf('SNAPSHOT') >= 0) continue;
@@ -5616,9 +6098,10 @@
         const mesJs = cur.getMonth();
         const dia = cur.getDate();
         const fDate = new Date(y, mesJs, dia);
-        // Solo meses con grilla de programación cargada (sept=8, oct=9 de 2026)
-        if (y === 2026 && (mesJs === 8 || mesJs === 9)) {
-          const ctOrig = codigoProgramacionMes(leg, dia, mesJs);
+        // Solo meses con programación (tablas fijas o de Cajeros)
+        if (hayProgMes(mesJs, y)) {
+          // HE programadas: SIEMPRE sobre la versión inicial del mes
+          const ctOrig = codigoProgInicial(leg, dia, mesJs, y);
           if (ctOrig) {
             const heO = horasExtraPorCodigo(ctOrig, fDate, null);
             if (heO) {
@@ -5626,7 +6109,7 @@
               rec.detalle.push({
                 fecha: _fmtFechaCortaHE(fDate) || ('Día ' + dia),
                 turno: 'PROG',
-                caja: 'Programación original',
+                caja: 'Programación inicial',
                 ct: ctOrig,
                 he: heO,
                 tipo: 'prog',
@@ -5636,7 +6119,7 @@
             }
           }
           const ctAct = (typeof codigoProgramacionMesActual === 'function')
-            ? codigoProgramacionMesActual(leg, dia, mesJs)
+            ? codigoProgramacionMesActual(leg, dia, mesJs, y)
             : ctOrig;
           if (ctAct) {
             const heA = horasExtraPorCodigo(ctAct, fDate, null);
@@ -6157,8 +6640,8 @@ function abrirPanelCajerosDia() {
     const tit = document.getElementById('panel-cajeros-dia-titulo');
     if (!panel || !body) return;
     const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-    if (!info || (info.mes !== 8 && info.mes !== 9)) {
-      alert('El panel de cajeros del día usa la Programación de septiembre u octubre 2026.\nElegí una fecha de esos meses.');
+    if (!info || !hayProgMes(info.mes, info.anio)) {
+      alert('El panel de cajeros del día usa la Programación del mes.\nNo hay programación cargada para esa fecha.');
       return;
     }
 
@@ -6542,7 +7025,8 @@ try { registrarAuditoria('borrar_dia', 'Borró todos los datos del día: ' + fec
       const prog = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.indexOf('progSept2026_') === 0) prog[k] = localStorage.getItem(k);
+        if (k && (k.indexOf('progSept2026_') === 0 || k.indexOf('progOct2026_') === 0 ||
+            /^prog\d{4}-\d{2}_/.test(k) || k.indexOf('progFeriados_') === 0)) prog[k] = localStorage.getItem(k);
       }
       // Colores CT Cabina/Jefes (antes no se exportaban → al importar no se corregían)
       const ctColores = localStorage.getItem('tablero_ct_colores_v3')
@@ -14313,27 +14797,47 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       try { inicializarProgramacionSept(); } catch (e) { console.warn('prog init', e); }
       progInicializado = true;
     }
+    try { cambiarMesProgramacion(window._progMesActivo); } catch (e) {}
+    try { actualizarProgDesdeCajeros(); } catch (e) {}
   }
 
+  /** Mes por defecto: el de la fecha del tablero, o el actual, o el último con programación */
+  function mesProgPorDefecto() {
+    const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
+    if (info && idTablaProgMes(info.mes, info.anio)) return idTablaProgMes(info.mes, info.anio);
+    const hoy = new Date();
+    if (idTablaProgMes(hoy.getMonth(), hoy.getFullYear())) return idTablaProgMes(hoy.getMonth(), hoy.getFullYear());
+    const t = tablasProgDisponibles();
+    return t.length ? t[t.length - 1].id : 'sept';
+  }
+  /** Muestra la tabla del mes ('sept' | 'oct' | 'AAAA-MM') */
   function cambiarMesProgramacion(mes) {
-    mes = (mes === 'oct') ? 'oct' : 'sept';
+    if (!mes || !document.getElementById('tabla-programacion-' + mes)) {
+      // id viejo 'oct' reemplazado por la tabla de Cajeros
+      const i = infoDeIdTablaProg(mes);
+      mes = (i && idTablaProgMes(i.mes, i.anio)) || mesProgPorDefecto();
+    }
     window._progMesActivo = mes;
-    const sept = document.getElementById('tabla-programacion-sept');
-    const oct = document.getElementById('tabla-programacion-oct');
+    const info = infoDeIdTablaProg(mes) || { mes: 8, anio: 2026 };
+    const nombre = nombreMesProg(info.mes, info.anio);
+    document.querySelectorAll('#vista-prog table[data-prog-mes]').forEach(function (t) {
+      t.style.display = (t.getAttribute('data-prog-mes') === mes) ? '' : 'none';
+    });
     const tit = document.getElementById('prog-titulo-mes');
-    const bS = document.getElementById('btn-prog-mes-sept');
-    const bO = document.getElementById('btn-prog-mes-oct');
-    if (sept) sept.style.display = (mes === 'sept') ? '' : 'none';
-    if (oct) oct.style.display = (mes === 'oct') ? '' : 'none';
-    if (tit) tit.textContent = (mes === 'oct')
-      ? 'CAJEROS VENTA PAGO OCTUBRE 2026'
-      : 'CAJEROS VENTA PAGO SEPTIEMBRE 2026';
-    if (bS) { bS.style.opacity = mes === 'sept' ? '1' : '0.75'; bS.classList.toggle('activo', mes === 'sept'); }
-    if (bO) { bO.style.opacity = mes === 'oct' ? '1' : '0.75'; bO.classList.toggle('activo', mes === 'oct'); }
+    if (tit) tit.textContent = 'CAJEROS VENTA PAGO ' + nombre.toUpperCase();
+    const tit2 = document.querySelector('#vista-prog .barra-top-prog h1');
+    if (tit2) tit2.textContent = '📅 Programación — Cajeros Venta Pago · ' + nombre;
+    document.querySelectorAll('#vista-prog .prog-mes-btn').forEach(function (b) {
+      const act = b.id === 'btn-prog-mes-' + mes;
+      b.style.opacity = act ? '1' : '0.75';
+      b.classList.toggle('activo', act);
+    });
     try {
       const el = document.getElementById('prog-estado-guardado');
-      if (el) el.textContent = (mes === 'oct' ? 'Octubre' : 'Septiembre') + ' — los cambios se pueden guardar en este navegador.';
+      if (el) el.textContent = PROG_MES_NOMBRES[info.mes].replace(/^./, function (c) { return c.toUpperCase(); }) +
+        ' — los cambios se pueden guardar en este navegador.';
     } catch (e) {}
+    try { pintarEstadoProgCajeros(); } catch (e) {}
   }
 
   function cerrarProgramacionSept() {
@@ -14355,26 +14859,33 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       {v:"TP", label:"TP"}, {v:"14F", label:"14F"}, {v:"BLOQ", label:"❌"},
       {v:"?", label:"?"}
     ];
+    // Códigos que trae Cajeros y no están en la lista (LIC, T1, ...)
+    Object.keys(PROG_CAJ).forEach(function (k) {
+      (PROG_CAJ[k].codList || []).forEach(function (c) {
+        if (!CODIGOS.some(function (o) { return o.v === c; })) CODIGOS.splice(CODIGOS.length - 2, 0, { v: c, label: c });
+      });
+    });
     const CLASES_COLOR = ["md","ms","t3","t","te","n","e","e1","x","in","f","lao","fc","dv","np","tp","f14","bloq","duda","vacio"];
     function prefixDeTd(td) {
-      try {
-        const tab = td && td.closest && td.closest('table[data-prog-mes]');
-        if (tab && tab.getAttribute('data-prog-mes') === 'oct') return 'progOct2026_';
-      } catch (e) {}
-      return 'progSept2026_';
+      const i = infoTablaDeElemento(td);
+      return prefijoProgMes(i.mes, i.anio);
+    }
+    function snapshotKeyActivo() {
+      const i = infoDeIdTablaProg(window._progMesActivo) || { mes: 8, anio: 2026 };
+      return prefijoProgMes(i.mes, i.anio) + 'SNAPSHOT';
     }
     function snapshotKeyDeTd(td) {
       return prefixDeTd(td) + 'SNAPSHOT';
     }
     let viendoOriginal = false;
-    window._progMesActivo = window._progMesActivo || 'sept';
+    window._progMesActivo = window._progMesActivo || mesProgPorDefecto();
 
     function claseColor(codigo) {
       const c = (codigo || "").trim().toLowerCase();
       const mapa = {
         "md":"md","ms":"ms","t3":"t3","t":"t","te":"te","n":"n","e":"e","e1":"e1","x":"x",
         "in":"in","f":"f","lao":"lao","fc":"fc","dv":"dv","np":"np","tp":"tp",
-        "14f":"f14","bloq":"bloq","?":"duda"
+        "14f":"f14","bloq":"bloq","?":"duda","lic":"lao","10a":"f14","10j":"f14"
       };
       return mapa[c] || "vacio";
     }
@@ -14418,7 +14929,9 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       select.addEventListener('change', () => {
         if (viendoOriginal) return;
         aplicarClase(td, select.value);
-        localStorage.setItem(key, select.value);
+        // Igual a la base (Cajeros) = sin corrección, así siguen llegando los cambios de Cajeros
+        if (select.value === original) localStorage.removeItem(key);
+        else localStorage.setItem(key, select.value);
         marcarPendienteGuardar();
         try { actualizarTotalesHEProg(); } catch (e) {}
       });
@@ -14462,12 +14975,14 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         const select = td.querySelector('select');
         const val = select ? select.value : valorCelda(td);
         const key = prefixDeTd(td) + legajo + "_" + dia;
-        localStorage.setItem(key, val);
+        // Solo se guardan las correcciones; lo igual a la base sigue a Cajeros
+        if (val === (td.getAttribute('data-code') || '')) localStorage.removeItem(key);
+        else localStorage.setItem(key, val);
         snap[legajo + "_" + dia] = val;
         n++;
       });
       try {
-        localStorage.setItem((window._progMesActivo === 'oct' ? 'progOct2026_SNAPSHOT' : 'progSept2026_SNAPSHOT'), JSON.stringify({
+        localStorage.setItem(snapshotKeyActivo(), JSON.stringify({
           fechaGuardado: new Date().toLocaleString('es-AR'),
           celdas: snap
         }));
@@ -14538,7 +15053,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         const dia = td.getAttribute('data-dia');
         localStorage.removeItem(prefixDeTd(td) + legajo + "_" + dia);
       });
-      try { localStorage.removeItem(window._progMesActivo === 'oct' ? 'progOct2026_SNAPSHOT' : 'progSept2026_SNAPSHOT'); } catch (e) {}
+      try { localStorage.removeItem(snapshotKeyActivo()); } catch (e) {}
       aplicarValoresAGrilla(false);
       root.querySelectorAll('td[data-code] select').forEach(function (s) { s.disabled = false; });
       const el = root.querySelector('#prog-estado-guardado');
@@ -14550,19 +15065,15 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 
     root.querySelectorAll('td[data-code]').forEach(crearSelect);
 
-    function _mesJsDeTablaProg(el) {
-      const tab = el && el.closest ? el.closest('table[data-prog-mes]') : null;
-      return (tab && tab.getAttribute('data-prog-mes') === 'oct') ? 9 : 8;
-    }
     function pintarHeadersFeriadosProg() {
       root.querySelectorAll('tr.dia-header th[data-prog-dia]').forEach(function (th) {
-        const mesJs = _mesJsDeTablaProg(th);
+        const im = infoTablaDeElemento(th);
         const dia = parseInt(th.getAttribute('data-prog-dia'), 10);
         th.classList.remove('prog-feriado', 'prog-vispera');
-        if (esFeriadoProg(dia, mesJs)) {
+        if (esFeriadoProg(dia, im.mes, im.anio)) {
           th.classList.add('prog-feriado');
           th.title = 'Feriado (clic para quitar)';
-        } else if (esVisperaPorProg(dia, mesJs)) {
+        } else if (esVisperaPorProg(dia, im.mes, im.anio)) {
           th.classList.add('prog-vispera');
           th.title = 'Víspera de feriado';
         } else {
@@ -14571,9 +15082,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       });
     }
     window.pintarHeadersFeriadosProg = pintarHeadersFeriadosProg;
+    function bindHeadersFeriadosProg() {
     root.querySelectorAll('tr.dia-header').forEach(function (tr) {
-      const mesTr = _mesJsDeTablaProg(tr);
-      const maxDia = (mesTr === 9) ? 31 : 30;
+      const imTr = infoTablaDeElemento(tr);
+      const mesTr = imTr.mes, anioTr = imTr.anio;
+      const maxDia = diasDelMesProg(mesTr, anioTr);
       tr.querySelectorAll('th').forEach(function (th) {
         if (th.classList.contains('col-legajo') || th.classList.contains('col-nombre') || th.classList.contains('col-he-prog')) return;
         const htmlTh = String(th.innerHTML || '');
@@ -14588,11 +15101,13 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
           th.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            if (typeof toggleFeriadoProg === 'function') toggleFeriadoProg(dia, mesTr);
+            if (typeof toggleFeriadoProg === 'function') toggleFeriadoProg(dia, mesTr, anioTr);
           });
         }
       });
     });
+    }
+    bindHeadersFeriadosProg();
     try { pintarHeadersFeriadosProg(); } catch (e) {}
 
     function actualizarTotalesHEProg() {
@@ -14607,18 +15122,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         root.querySelectorAll('td[data-code][data-legajo="' + leg + '"]').forEach(function (td) {
           const dia = parseInt(td.getAttribute('data-dia'), 10);
           if (!dia) return;
-          // HE programadas = programación ORIGINAL (data-code), solo días del período 26→25
-          const cod = String(td.getAttribute('data-code') || '').trim().toUpperCase();
+          // HE programadas = versión INICIAL del mes, solo días del período 26→25
+          const imTd = infoTablaDeElemento(td);
+          const cod = codigoProgInicial(leg, dia, imTd.mes, imTd.anio);
           if (!cod) return;
-          let fDate = null;
-          try {
-            var mesTd = 8;
-            try {
-              var tabHE = td.closest('table[data-prog-mes]');
-              if (tabHE && tabHE.getAttribute('data-prog-mes') === 'oct') mesTd = 9;
-            } catch (eHE) {}
-            fDate = new Date(2026, mesTd, dia);
-          } catch (e) { fDate = new Date(2026, 8, dia); }
+          const fDate = new Date(imTd.anio, imTd.mes, dia);
           if (per && typeof fechaEnRangoHE === 'function') {
             if (!fechaEnRangoHE(fDate, per.desdeMs, per.hastaMs)) return;
           }
@@ -14633,12 +15141,24 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         const v = Math.round(sum * 100) / 100;
         tdTot.textContent = v ? String(v).replace('.', ',') : '0';
         const lab = (per && per.label) ? per.label : '26→25';
-        tdTot.title = 'HE programadas (original, período ' + lab + '): ' + v + ' hs';
+        tdTot.title = 'HE programadas (versión inicial, período ' + lab + '): ' + v + ' hs';
       });
     }
 
     // Total HE al final de cada fila
     try { actualizarTotalesHEProg(); } catch (eHe) {}
+
+    // Tablas que llegan (o se rearman) desde Cajeros después de abrir la grilla
+    window._progPrepararTablas = function () {
+      root.querySelectorAll('td[data-code]').forEach(crearSelect);
+      const sinSesion = (typeof puedeModificarTablero === 'function' && !puedeModificarTablero());
+      root.querySelectorAll('td[data-code] select').forEach(function (s) { s.disabled = viendoOriginal || sinSesion; });
+      bindHeadersFeriadosProg();
+      try { pintarHeadersFeriadosProg(); } catch (e) {}
+      try { actualizarTotalesHEProg(); } catch (e) {}
+      try { cambiarMesProgramacion(window._progMesActivo); } catch (e) {}
+      try { const inp = root.querySelector('#prog-buscar-empleado'); if (inp && inp.value) filtrarProgramacionPorNombre(); } catch (e) {}
+    };
 
     function filtrarProgramacionPorNombre() {
       const inp = root.querySelector('#prog-buscar-empleado');
@@ -14765,7 +15285,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 
     // Estado inicial del mensaje
     try {
-      const snapRaw = localStorage.getItem(window._progMesActivo === 'oct' ? 'progOct2026_SNAPSHOT' : 'progSept2026_SNAPSHOT');
+      const snapRaw = localStorage.getItem(snapshotKeyActivo());
       if (snapRaw) {
         const snap = JSON.parse(snapRaw);
         const el = root.querySelector('#prog-estado-guardado');
@@ -15134,7 +15654,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026101201', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026103101', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
