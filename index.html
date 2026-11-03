@@ -370,6 +370,9 @@
     }
     .fecha-linea {
       align-items: stretch;
+      /* No achicarse por debajo del casillero de fecha: si no entran, los botones bajan a otra fila
+         (antes en pantallas chicas quedaban tapados por la fecha) */
+      min-width: min-content;
     }
     .fecha-nav {
       align-items: stretch;
@@ -15847,7 +15850,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110301', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110302', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
