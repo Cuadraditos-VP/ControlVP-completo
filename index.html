@@ -3653,12 +3653,9 @@
     code = String(code || '').trim().toLowerCase();
     if (!code) return;
     if (!/^[a-z0-9]{6,40}$/.test(code)) { mostrarRecuadroInfo('El código no es válido. Revisalo y probá de nuevo.', 'Conectar con Cajeros'); return; }
-    // En Safari de iPhone no se gasta: se usa desde la app instalada
-    if (!desdeBoton && cajSafariIOS()) {
-      mostrarRecuadroInfo('Para usar Control VP en el iPhone: tocá Compartir → "Agregar a inicio", abrí la app desde el ícono, ' +
-        'tocá 🔗 y escribí este código: ' + code, 'Conectar con Cajeros');
-      return;
-    }
+    // Link abierto en el navegador (no en la app instalada): no se gasta solo, se pregunta dónde usarlo
+    if (!desdeBoton && !cajAppInstalada()) { mostrarCartelInvitacion(code); return; }
+    cajCerrarCartelInvitacion();
     cajGrabar(LS_CAJ_INV_PEND, null);
     let tok;
     try { tok = await cajToken(true); }
@@ -3710,9 +3707,80 @@
       try { actualizarProgDesdeCajeros(); } catch (e) {}
       return;
     }
-    const code = prompt('Escribí el código de invitación que te mandó el administrador de Cajeros:', '');
-    if (code === null || !String(code).trim()) return;
+    let pend = '';
+    try { pend = localStorage.getItem(LS_CAJ_INV_PEND) || ''; } catch (e) {}
+    const txt = prompt('Pegá el código de invitación (o el mensaje entero de WhatsApp que te mandaron):', pend);
+    if (txt === null || !String(txt).trim()) return;
+    const code = extraerCodigoInvitacion(txt);
+    if (!code) { mostrarRecuadroInfo('No encontré el código en lo que pegaste. Probá pegando de nuevo el mensaje entero.', 'Conectar con Cajeros'); return; }
     aceptarInvitacionCajeros(code, true);
+  }
+  /** Saca el código de lo que pegó la persona: el código solo, el link (?inv=…) o el mensaje entero */
+  function extraerCodigoInvitacion(txt) {
+    const t = String(txt || '').trim();
+    let m = /[?&]inv=([a-z0-9]{6,40})/i.exec(t);
+    if (m) return m[1].toLowerCase();
+    m = /c[oó]digo[^a-z0-9]*([a-z0-9]{6,40})/i.exec(t);
+    if (m) return m[1].toLowerCase();
+    return /^[a-z0-9]{6,40}$/i.test(t) ? t.toLowerCase() : '';
+  }
+  function cajCopiar(texto, btn) {
+    const listo = function () { if (btn) { btn.textContent = '✓ Copiado'; setTimeout(function () { btn.textContent = '📋 Copiar código'; }, 2000); } };
+    const aMano = function () {
+      const inp = document.getElementById('cajInvCodigo');
+      if (inp) { inp.focus(); inp.select(); try { inp.setSelectionRange(0, 99); } catch (e) {} }
+      try { if (document.execCommand('copy')) { listo(); return; } } catch (e) {}
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(texto).then(listo, aMano); return; }
+    } catch (e) {}
+    aMano();
+  }
+  function cajCerrarCartelInvitacion() {
+    const ov = document.getElementById('modalInvCajeros');
+    if (ov) ov.remove();
+  }
+  /** Link de invitación abierto en el navegador: usarlo acá o guardarlo para la app instalada */
+  function mostrarCartelInvitacion(code) {
+    cajCerrarCartelInvitacion();
+    const ios = cajSafariIOS();
+    const overlay = document.createElement('div');
+    overlay.id = 'modalInvCajeros';
+    overlay.className = 'modal-overlay show';
+    overlay.style.zIndex = '9900';
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.maxWidth = '420px';
+    modal.innerHTML =
+      '<div class="modal-header"><span>🔗 Conectar con Cajeros</span><button type="button" class="modal-close" id="cajInvX">&times;</button></div>' +
+      '<div class="modal-body" style="display:flex;flex-direction:column;gap:10px;font-size:0.95rem;line-height:1.4">' +
+      '<p style="margin:0">Esta invitación sirve para <b>un solo</b> dispositivo. ¿Dónde vas a usar Control VP?</p>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+      '<input id="cajInvCodigo" type="text" readonly style="flex:1;min-width:0;padding:8px 10px;border:2px solid #00838f;border-radius:8px;font-size:1.1rem;font-weight:800;letter-spacing:1px;text-align:center;background:#e0f7fa;color:#004d55">' +
+      '<button type="button" class="btn" id="cajInvCopiar" style="background:#00838f;min-width:auto;padding:8px 10px;font-size:0.9rem;white-space:nowrap">📋 Copiar código</button>' +
+      '</div>' +
+      '<button type="button" class="btn" id="cajInvApp" style="background:#5c4033;min-width:auto;padding:10px;font-size:0.95rem;line-height:1.3">📱 La voy a usar en la app instalada</button>' +
+      '<p id="cajInvAppTxt" style="display:none;margin:0;padding:8px 10px;background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;font-size:0.88rem"></p>' +
+      '<button type="button" class="btn" id="cajInvAca" style="background:#1e5a3a;min-width:auto;padding:10px;font-size:0.95rem">✅ Usarla acá' + (ios ? ' (en Safari)' : ' (en este navegador)') + '</button>' +
+      '</div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const inp = modal.querySelector('#cajInvCodigo');
+    inp.value = code;
+    inp.addEventListener('focus', function () { inp.select(); });
+    modal.querySelector('#cajInvX').onclick = cajCerrarCartelInvitacion;
+    modal.querySelector('#cajInvCopiar').onclick = function () { cajCopiar(code, this); };
+    modal.querySelector('#cajInvAca').onclick = function () { aceptarInvitacionCajeros(code, true); };
+    modal.querySelector('#cajInvApp').onclick = function () {
+      cajCopiar(code, modal.querySelector('#cajInvCopiar'));
+      const p = modal.querySelector('#cajInvAppTxt');
+      p.style.display = '';
+      p.innerHTML = ios
+        ? 'Ya copié el código. Si todavía no tenés la app: tocá Compartir → "Agregar a inicio". Abrí la app desde el ícono, ' +
+          'cancelá el usuario, tocá <b>🔗</b> y pegá el código.'
+        : 'Ya copié el código. Abrí la app instalada de Control VP: puede que se conecte sola. Si no, ' +
+          'cancelá el usuario, tocá <b>🔗</b> y pegá el código.';
+    };
   }
   function actualizarBotonCajeros() {
     const b = document.getElementById('btnCajerosConexion');
@@ -15850,7 +15918,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110302', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110303', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
