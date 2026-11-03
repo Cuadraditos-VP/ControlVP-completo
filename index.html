@@ -2922,6 +2922,7 @@
           <button class="btn btn-undo" id="btnUndo" onclick="deshacer()" title="Deshacer (Ctrl+Z)" disabled>↶</button>
           <button class="btn btn-redo" id="btnRedo" onclick="rehacer()" title="Rehacer (Ctrl+Y)" disabled>↷</button>
           <button class="btn btn-sesion" id="btnSesion" onclick="abrirPanelSesion()" title="Sesión / usuarios">👤</button>
+          <button class="btn" id="btnCajerosConexion" onclick="abrirConexionCajeros()" title="Conectar con Cajeros (código de invitación)" style="display:none;background:#00838f">🔗</button>
           <span id="badge-sesion"></span>
           <button class="btn btn-unlock btn-solo-cabina" onclick="desbloquearOriginal()" title="Desbloquear" style="display:none">🔓</button>
           <button class="btn btn-cierre" onclick="cierreFinalFecha()" title="Cierre final de la fecha">🔒</button>
@@ -3268,21 +3269,19 @@
   /* ===================================================================
    * PROGRAMACIÓN DESDE CAJEROS (vista CJ)
    * La base de cada mes sale de la app Cajeros:
-   *   - Programación oficial: <mes>-<año>.json del repo Cuadraditos-VP/CAJEROS
-   *   - Cambios de los cajeros: colección "cj_cajeros" de Firebase (último cambio de cada celda)
-   *   - Feriados: los publicados en Firebase ("cajeros/<mes>") o, si no hay, los del JSON
-   *   - Inicial (para HE programadas): la semilla del PDF cargada en Cajeros
+   *   - Programación oficial: Firebase "turnos_cajeros/<AAAA-MM>" (protegida: hace falta la invitación, ver más abajo)
+   *   - Cambios de los cajeros: lo que cada uno publicó en su fila ("propios_cajeros", último cambio de cada celda)
+   *   - Feriados: los publicados en Firebase ("cajeros/<mes>") o, si no hay, los del mes
+   *   - Inicial (para HE programadas): la primera versión publicada del mes ("inicial")
    * Cada mes de Cajeros se arma como una tabla más dentro de #vista-prog.
    * Las tablas fijas de septiembre/octubre 2026 quedan como copia del PDF (versión inicial).
    * Lo que se corrige a mano en Control VP (localStorage) siempre pisa a lo que viene de Cajeros.
    * =================================================================== */
   const PROG_MES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const CAJ_RAW_BASE = 'https://raw.githubusercontent.com/Cuadraditos-VP/CAJEROS/main/';
   const CAJ_FS_BASE = 'https://firestore.googleapis.com/v1/projects/programacioncajeros-a7420/databases/(default)/documents';
   const CAJ_FS_KEY = 'AIzaSyDYijmzeeKObIRGbNkIsbsGzoonJilnBHc';
   const LS_PROG_CAJEROS = 'tablero_prog_cajeros_v1';
   const LS_PROG_INICIAL = 'tablero_prog_inicial_';   // + 'AAAA-MM': copia congelada si Cajeros no trae inicial
-  const CAJ_HTML_CADA_MS = 30 * 60 * 1000;           // el HTML de Cajeros (semillas) se relee cada 30 min
   const PROG_CAJ = {};        // 'AAAA-MM' → { mes, anio, people, grupos, codigos, oficial, cambios, inicial, feriados, codList }
   const PROG_ESTATICO = {};   // 'AAAA-MM' → { legajo: códigos } de las tablas fijas (sep/oct 2026, del PDF)
   let progCajerosEstado = { ok: false, cjOk: null, cjError: '', actualizado: 0, cambios: 0, error: '' };
@@ -3402,36 +3401,6 @@
       cambios[id + ':' + di] = 1;
     });
     return { codigos: codigos, cambios: cambios };
-  }
-
-  /** Lee del HTML de Cajeros las semillas de cada mes (la programación inicial cargada del PDF) */
-  function parsearSemillasCajeros(html) {
-    const out = {};
-    const m = /const\s+SEED_BY_MES\s*=\s*\{([^}]*)\}/.exec(html || '');
-    if (!m) return out;
-    const re = /"(\d{4}-\d{2})"\s*:\s*([A-Za-z_$][\w$]*)/g;
-    let x;
-    while ((x = re.exec(m[1]))) {
-      const key = x[1], nombre = x[2];
-      const ini = html.indexOf('const ' + nombre + ' = [');
-      if (ini < 0) continue;
-      const fin = html.indexOf('];', ini);
-      if (fin < 0) continue;
-      const seg = html.slice(ini, fin);
-      const reP = /id:\s*"(\d+)"[^}]*?codes:\s*(\[[^\]]*\])/g;
-      const people = {};
-      let hayCodigos = false, p;
-      while ((p = reP.exec(seg))) {
-        try {
-          const codes = JSON.parse(p[2]).map(function (c) { return String(c || '').trim().toUpperCase(); });
-          if (codes.some(Boolean)) hayCodigos = true;
-          people[p[1]] = codes;
-        } catch (e) {}
-      }
-      // La semilla solo sirve si trae turnos (la de octubre es un molde vacío), igual que en Cajeros
-      if (hayCodigos) out[key] = people;
-    }
-    return out;
   }
 
   function cargarCacheProgCajeros() {
@@ -3593,17 +3562,197 @@
     return out;
   }
 
+  /* ===================================================================
+   * CONEXIÓN CON CAJEROS (por invitación)
+   * Los turnos de Cajeros están protegidos en Firebase: solo los leen los dispositivos
+   * autorizados. Cada dispositivo de Control VP se autoriza UNA vez con una invitación
+   * que manda el admin desde Cajeros (Celulares → "Invitar a Control VP"):
+   *   - el link trae ?inv=CÓDIGO, o se escribe el código con el botón 🔗
+   *   - Control VP entra a Firebase como usuario anónimo propio (sin el SDK, por REST),
+   *     marca la invitación como usada y se registra en yo_cajeros como "inv-CÓDIGO"
+   *   - desde ahí lee turnos_cajeros (oficial) + propios_cajeros (cambios publicados)
+   * =================================================================== */
+  const LS_CAJ_AUTH = 'cvp_caj_auth_v1';        // { refresh, uid }
+  const LS_CAJ_INV_PEND = 'cvp_caj_inv_pend';   // código recibido por link, todavía sin usar
+  const LS_CAJ_INV_OK = 'cvp_caj_inv_ok_v1';    // { code, name, t } invitación ya usada en este dispositivo
+  const CAJ_AUTH_BASE = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=';
+  const CAJ_TOKEN_BASE = 'https://securetoken.googleapis.com/v1/token?key=';
+  let _cajTok = null; // { id, uid, exp }
+
+  // Si se abrió con ?inv=CÓDIGO: se guarda y se saca de la dirección
+  (function () {
+    try {
+      const q = new URLSearchParams(location.search);
+      const c = (q.get('inv') || '').trim();
+      if (!c) return;
+      localStorage.setItem(LS_CAJ_INV_PEND, c);
+      q.delete('inv');
+      const qs = q.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    } catch (e) {}
+  })();
+
+  function cajLeer(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function cajGrabar(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function cajConectado() { return !!cajLeer(LS_CAJ_INV_OK); }
+
+  /** Token de Firebase de este dispositivo. crear=true: si no hay, crea el usuario anónimo. */
+  async function cajToken(crear) {
+    if (_cajTok && _cajTok.exp > Date.now() + 60000) return _cajTok;
+    const a = cajLeer(LS_CAJ_AUTH);
+    if (a && a.refresh) {
+      const r = await fetch(CAJ_TOKEN_BASE + CAJ_FS_KEY, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(a.refresh)
+      });
+      if (r.ok) {
+        const d = await r.json();
+        _cajTok = { id: d.id_token, uid: d.user_id, exp: Date.now() + (Number(d.expires_in) || 3600) * 1000 };
+        cajGrabar(LS_CAJ_AUTH, { refresh: d.refresh_token || a.refresh, uid: d.user_id });
+        return _cajTok;
+      }
+      if (r.status >= 400 && r.status < 500) cajGrabar(LS_CAJ_AUTH, null); // usuario borrado o token inválido
+      else { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    }
+    if (!crear) return null;
+    const r = await fetch(CAJ_AUTH_BASE + CAJ_FS_KEY, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true })
+    });
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    const d = await r.json();
+    _cajTok = { id: d.idToken, uid: d.localId, exp: Date.now() + (Number(d.expiresIn) || 3600) * 1000 };
+    cajGrabar(LS_CAJ_AUTH, { refresh: d.refreshToken, uid: d.localId });
+    return _cajTok;
+  }
+  function cajAuthOpts(tok, opts) {
+    const o = Object.assign({}, opts || {});
+    o.headers = Object.assign({}, o.headers || {}, { Authorization: 'Bearer ' + tok.id });
+    return o;
+  }
+  function cajDispositivo() {
+    const ua = navigator.userAgent || '';
+    const so = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android'
+      : /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Otro';
+    return so + ' · Control VP' + (cajAppInstalada() ? ' (app)' : '');
+  }
+  function cajAppInstalada() {
+    try { return !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); }
+    catch (e) { return false; }
+  }
+  /** Safari de iPhone sin la app instalada: no comparte nada con la app del inicio */
+  function cajSafariIOS() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/.test(ua) && !cajAppInstalada();
+  }
+
+  /** Usa la invitación de Cajeros en este dispositivo. desdeBoton: el código lo escribió la persona. */
+  async function aceptarInvitacionCajeros(code, desdeBoton) {
+    code = String(code || '').trim().toLowerCase();
+    if (!code) return;
+    if (!/^[a-z0-9]{6,40}$/.test(code)) { mostrarRecuadroInfo('El código no es válido. Revisalo y probá de nuevo.', 'Conectar con Cajeros'); return; }
+    // En Safari de iPhone no se gasta: se usa desde la app instalada
+    if (!desdeBoton && cajSafariIOS()) {
+      mostrarRecuadroInfo('Para usar Control VP en el iPhone: tocá Compartir → "Agregar a inicio", abrí la app desde el ícono, ' +
+        'tocá 🔗 y escribí este código: ' + code, 'Conectar con Cajeros');
+      return;
+    }
+    cajGrabar(LS_CAJ_INV_PEND, null);
+    let tok;
+    try { tok = await cajToken(true); }
+    catch (e) {
+      try { localStorage.setItem(LS_CAJ_INV_PEND, code); } catch (e2) {}
+      mostrarRecuadroInfo('No se pudo conectar con Cajeros. Revisá la conexión y abrí el link de nuevo.', 'Conectar con Cajeros');
+      return;
+    }
+    const docUrl = CAJ_FS_BASE + '/invitados_cajeros/' + code;
+    let d = null;
+    try { d = fsDoc(await fetchJsonProg(docUrl + '?key=' + CAJ_FS_KEY, cajAuthOpts(tok))); }
+    catch (e) {
+      if (e && e.status === 404) { mostrarRecuadroInfo('La invitación no es válida o fue anulada. Pedile una nueva al administrador.', 'Conectar con Cajeros'); return; }
+      try { localStorage.setItem(LS_CAJ_INV_PEND, code); } catch (e2) {}
+      mostrarRecuadroInfo('No se pudo revisar la invitación. Revisá la conexión y abrí el link de nuevo.', 'Conectar con Cajeros');
+      return;
+    }
+    if (d.uid && d.uid !== tok.uid) { mostrarRecuadroInfo('Esta invitación ya se usó en otro dispositivo. Pedile una nueva al administrador.', 'Conectar con Cajeros'); return; }
+    try {
+      if (!d.uid) {
+        await fetchJsonProg(docUrl + '?key=' + CAJ_FS_KEY + '&updateMask.fieldPaths=uid&updateMask.fieldPaths=usadoEn&currentDocument.exists=true',
+          cajAuthOpts(tok, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: { uid: { stringValue: tok.uid }, usadoEn: { integerValue: String(Date.now()) } } }) }));
+      }
+      await fetchJsonProg(CAJ_FS_BASE + '/yo_cajeros/' + tok.uid + '?key=' + CAJ_FS_KEY,
+        cajAuthOpts(tok, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: {
+            uid: { stringValue: tok.uid }, id: { stringValue: 'inv-' + code }, name: { stringValue: String(d.name || 'Control VP') },
+            disp: { stringValue: cajDispositivo() }, t: { integerValue: String(Date.now()) }
+          } }) }));
+    } catch (e) {
+      mostrarRecuadroInfo('No se pudo usar la invitación. Pedile una nueva al administrador.', 'Conectar con Cajeros');
+      return;
+    }
+    cajGrabar(LS_CAJ_INV_OK, { code: code, name: d.name || '', t: Date.now() });
+    actualizarBotonCajeros();
+    mostrarRecuadroInfo('Listo' + (d.name ? ', ' + d.name : '') + ': Control VP ya recibe la programación de Cajeros.', 'Conectar con Cajeros');
+    try { await actualizarProgDesdeCajeros(); } catch (e) {}
+  }
+
+  /** Botón 🔗: escribir el código de invitación (o ver el estado si ya está conectado) */
+  function abrirConexionCajeros() {
+    if (cajConectado()) {
+      const inv = cajLeer(LS_CAJ_INV_OK) || {};
+      const st = progCajerosEstado || {};
+      const h = st.actualizado ? new Date(st.actualizado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+      mostrarRecuadroInfo('Conectado con Cajeros' + (inv.name ? ' (' + inv.name + ')' : '') + '.\nÚltima actualización: ' + h +
+        (st.error ? '\n⚠ ' + st.error : ''), 'Conexión con Cajeros');
+      try { actualizarProgDesdeCajeros(); } catch (e) {}
+      return;
+    }
+    const code = prompt('Escribí el código de invitación que te mandó el administrador de Cajeros:', '');
+    if (code === null || !String(code).trim()) return;
+    aceptarInvitacionCajeros(code, true);
+  }
+  function actualizarBotonCajeros() {
+    const b = document.getElementById('btnCajerosConexion');
+    if (!b) return;
+    const ok = cajConectado();
+    b.style.display = ok ? 'none' : '';
+    b.title = 'Conectar con Cajeros (código de invitación)';
+  }
+  try { window.abrirConexionCajeros = abrirConexionCajeros; } catch (e) {}
+
+  /** Cambios publicados por cada cajero en su fila (propios_cajeros) con el formato de CJ: "legajo:día" → { c, t } */
+  function propiosComoCj(d) {
+    const edits = {};
+    const t = d.t || {};
+    Object.keys(d.edits || {}).forEach(function (k) {
+      const di = Number(String(k).slice(1));
+      if (!(di >= 0)) return;
+      edits[String(d.id) + ':' + di] = { c: String(d.edits[k] || ''), t: Number(t[k]) || Number(d.updated) || 1 };
+    });
+    return { edits: edits };
+  }
+
   let progCajerosCargando = null;
   function actualizarProgDesdeCajeros() {
     if (progCajerosCargando) return progCajerosCargando;
     progCajerosCargando = (async function () {
       const anterior = cargarCacheProgCajeros() || { meses: {} };
+      let tok = null;
+      try { tok = await cajToken(false); } catch (e) { throw new Error('sin conexión'); }
+      if (!tok || !cajConectado()) {
+        progCajerosEstado.error = 'este dispositivo no está conectado a Cajeros: pedí una invitación al administrador (botón 🔗)';
+        progCajerosEstado.noConectado = true;
+        pintarEstadoProgCajeros();
+        actualizarBotonCajeros();
+        return null;
+      }
       const meses = {};
-      // 1) Programación oficial (JSON del repo de Cajeros)
+      let sinPermiso = false;
+      // 1) Programación oficial (turnos_cajeros, protegida)
       await Promise.all(mesesACargarProg().map(async function (x) {
         const key = claveMesProg(x.mes, x.anio);
         try {
-          const d = await fetchJsonProg(CAJ_RAW_BASE + PROG_MES_NOMBRES[x.mes] + '-' + x.anio + '.json?t=' + Date.now());
+          const d = fsDoc(await fetchJsonProg(CAJ_FS_BASE + '/turnos_cajeros/' + key + '?key=' + CAJ_FS_KEY, cajAuthOpts(tok)));
           if (!d || !Array.isArray(d.people) || !d.people.length) return;
           meses[key] = {
             people: d.people.map(function (p) { return { id: String(p.id || ''), name: p.name || '', codes: Array.isArray(p.codes) ? p.codes : String(p.codes || '').split(/\s+/) }; })
@@ -3611,6 +3760,7 @@
             grupos: Array.isArray(d.grupos) ? d.grupos.map(function (g) { return { name: g.name, count: g.count }; }) : null,
             feriados: Array.isArray(d.feriados) ? d.feriados : [],
             codigos: Array.isArray(d.codigos) ? d.codigos : [],
+            inicial: null,
             cj: []
           };
           if (Array.isArray(d.inicial) && d.inicial.length) {
@@ -3619,62 +3769,60 @@
               if (p && p.id) ini[String(p.id)] = (Array.isArray(p.codes) ? p.codes : String(p.codes || '').split(/\s+/))
                 .map(function (c) { return String(c || '').trim().toUpperCase(); });
             });
-            meses[key].inicialJson = ini;
+            meses[key].inicial = ini;
           }
         } catch (e) {
-          // 404 = ese mes todavía no existe; otro error (sin red) = se queda la copia anterior
-          if (!(e && e.status === 404) && anterior.meses[key]) meses[key] = anterior.meses[key];
+          if (e && (e.status === 403 || e.status === 401)) sinPermiso = true;
+          // 404 = ese mes todavía no está publicado; otro error (sin red) = se queda la copia anterior
+          else if (!(e && e.status === 404) && anterior.meses[key]) meses[key] = anterior.meses[key];
         }
       }));
+      if (sinPermiso) {
+        // El admin anuló el acceso de este dispositivo: se borra la copia y hay que pedir otra invitación
+        cajGrabar(LS_CAJ_INV_OK, null);
+        try { localStorage.removeItem(LS_PROG_CAJEROS); } catch (e) {}
+        progCajerosEstado = { ok: false, cjOk: null, cjError: '', actualizado: 0, cambios: 0,
+          error: 'Cajeros no deja leer la programación en este dispositivo: pedí una invitación nueva (botón 🔗)', noConectado: true };
+        pintarEstadoProgCajeros();
+        actualizarBotonCajeros();
+        return null;
+      }
       const keys = Object.keys(meses);
       if (!keys.length) throw new Error('No se pudo leer la programación de Cajeros');
-      // 1b) Programación INICIAL: semillas del HTML de Cajeros
-      let semillas = anterior.semillas || {};
-      let semillasAt = anterior.semillasAt || 0;
-      if (Date.now() - semillasAt > CAJ_HTML_CADA_MS) {
-        try {
-          const r = await fetch(CAJ_RAW_BASE + 'index.html?t=' + Date.now(), { cache: 'no-store' });
-          if (r.ok) { semillas = parsearSemillasCajeros(await r.text()); semillasAt = Date.now(); }
-        } catch (e) {}
-      }
-      keys.forEach(function (k) {
-        if (!('inicial' in meses[k]) || meses[k].inicialJson) meses[k].inicial = semillas[k] || meses[k].inicialJson || null;
-        delete meses[k].inicialJson;
-      });
-      // 2) Feriados publicados en Firebase (pisan a los del JSON)
+      // 2) Feriados publicados en Firebase (pisan a los del mes)
       await Promise.all(keys.map(async function (key) {
         try {
           const d = fsDoc(await fetchJsonProg(CAJ_FS_BASE + '/cajeros/' + key + '?key=' + CAJ_FS_KEY));
           if (Array.isArray(d.feriados)) meses[key].feriados = d.feriados;
         } catch (e) {}
       }));
-      // 3) Cambios de los cajeros (vista CJ)
+      // 3) Cambios que cada cajero publicó en su fila (propios_cajeros)
       let cjOk = true, cjError = '';
-      keys.forEach(function (k) { meses[k].cj = []; });
       try {
         const body = { structuredQuery: {
-          from: [{ collectionId: 'cj_cajeros' }],
+          from: [{ collectionId: 'propios_cajeros' }],
           where: { fieldFilter: { field: { fieldPath: 'mes' }, op: 'IN',
             value: { arrayValue: { values: keys.map(function (k) { return { stringValue: k }; }) } } } }
         } };
-        const res = await fetchJsonProg(CAJ_FS_BASE + ':runQuery?key=' + CAJ_FS_KEY, {
+        const res = await fetchJsonProg(CAJ_FS_BASE + ':runQuery?key=' + CAJ_FS_KEY, cajAuthOpts(tok, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
+        }));
         (Array.isArray(res) ? res : []).forEach(function (row) {
           if (!row || !row.document) return;
           const d = fsDoc(row.document);
-          if (d.mes && meses[d.mes] && d.edits) meses[d.mes].cj.push({ edits: d.edits });
+          if (d.mes && meses[d.mes] && d.id && d.edits) meses[d.mes].cj.push(propiosComoCj(d));
         });
       } catch (e) {
         cjOk = false;
         cjError = (e && (e.status === 403 || e.status === 401)) ? 'sin permiso' : 'sin conexión';
         keys.forEach(function (k) { if (anterior.meses[k] && anterior.meses[k].cj) meses[k].cj = anterior.meses[k].cj; });
       }
-      const cache = { actualizado: Date.now(), cjOk: cjOk, cjError: cjError, meses: meses, semillas: semillas, semillasAt: semillasAt };
+      const cache = { actualizado: Date.now(), cjOk: cjOk, cjError: cjError, meses: meses };
       const cambio = JSON.stringify(anterior.meses) !== JSON.stringify(meses);
       try { localStorage.setItem(LS_PROG_CAJEROS, JSON.stringify(cache)); } catch (e) {}
       if (cambio || !Object.keys(PROG_CAJ).length) aplicarProgCajeros(cache);
       actualizarEstadoProgCajeros(cache);
+      actualizarBotonCajeros();
       try { if (typeof sincronizarVisperaDesdeProg === 'function') sincronizarVisperaDesdeProg(); } catch (e) {}
       return cache;
     })().catch(function (e) {
@@ -3708,7 +3856,10 @@
     }
     const st = progCajerosEstado;
     let txt, color = '#2e7d32';
-    if (!st.ok) {
+    if (st.noConectado) {
+      txt = '⚠ ' + st.error.charAt(0).toUpperCase() + st.error.slice(1);
+      color = '#b71c1c';
+    } else if (!st.ok) {
       txt = '⚠ No se pudo leer Cajeros' + (st.error ? ' (' + st.error + ')' : '') + ' — se usa lo guardado';
       color = '#b71c1c';
     } else {
@@ -3732,7 +3883,14 @@
       if (c0) { aplicarProgCajeros(c0); actualizarEstadoProgCajeros(c0); }
       else renderTabsProg();
     } catch (e) { console.warn('prog cajeros', e); }
-    setTimeout(function () { actualizarProgDesdeCajeros(); }, 300);
+    setTimeout(function () {
+      actualizarBotonCajeros();
+      // Invitación recibida por link y todavía sin usar: primero se usa (después sincroniza sola)
+      let pend = '';
+      try { pend = localStorage.getItem(LS_CAJ_INV_PEND) || ''; } catch (e) {}
+      if (pend && !cajConectado()) aceptarInvitacionCajeros(pend, false);
+      else actualizarProgDesdeCajeros();
+    }, 300);
     setInterval(function () { if (!document.hidden) actualizarProgDesdeCajeros(); }, 3 * 60 * 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) actualizarProgDesdeCajeros(); });
   }
@@ -15689,7 +15847,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110201', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110301', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
