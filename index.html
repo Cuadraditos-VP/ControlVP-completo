@@ -3738,7 +3738,7 @@
     if (ov) ov.remove();
   }
   /** Link de invitación abierto en el navegador: usarlo acá o guardarlo para la app instalada */
-  function mostrarCartelInvitacion(code) {
+  function mostrarCartelInvitacion(code, yaConectado) {
     cajCerrarCartelInvitacion();
     const ios = cajSafariIOS();
     const overlay = document.createElement('div');
@@ -3762,6 +3762,12 @@
       '</div>';
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    if (yaConectado) {
+      modal.querySelector('.modal-body > p').innerHTML = '<b>Este dispositivo ya está conectado a Cajeros</b>, así que esta invitación ' +
+        '<b>no se usó</b>. Copiá el código para usarlo en otro dispositivo (en Control VP: 🔗 y pegar).';
+      modal.querySelector('#cajInvAca').style.display = 'none';
+      modal.querySelector('#cajInvApp').style.display = 'none';
+    }
     const inp = modal.querySelector('#cajInvCodigo');
     inp.value = code;
     inp.addEventListener('focus', function () { inp.select(); });
@@ -3957,7 +3963,11 @@
       let pend = '';
       try { pend = localStorage.getItem(LS_CAJ_INV_PEND) || ''; } catch (e) {}
       if (pend && !cajConectado()) aceptarInvitacionCajeros(pend, false);
-      else actualizarProgDesdeCajeros();
+      else {
+        // Ya conectado y llegó otra invitación: no se usa acá, se muestra para usarla en otro dispositivo
+        if (pend) { cajGrabar(LS_CAJ_INV_PEND, null); mostrarCartelInvitacion(pend, true); }
+        actualizarProgDesdeCajeros();
+      }
     }, 300);
     setInterval(function () { if (!document.hidden) actualizarProgDesdeCajeros(); }, 3 * 60 * 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) actualizarProgDesdeCajeros(); });
@@ -15915,7 +15925,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110305', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110306', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
