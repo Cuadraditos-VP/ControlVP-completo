@@ -2905,9 +2905,9 @@
   .btn-add { background: #666666; }
   .btn-add:hover { background: #4d4d4d; }
 
-  /* Fondo de las cajas del mismo gris que sus títulos */
-  .seccion { background: #cfcfcf; }
-  body.turno-noche .seccion { background: #c4ced8; }
+  /* Cajas y sus títulos con fondo blanco; el título más alto y con letra más grande */
+  .seccion, body.turno-noche .seccion { background: #ffffff; }
+  .seccion-titulo, body.turno-noche .seccion-titulo { background: #ffffff; color: #1f1f1f; height: 56px; font-size: 1.05rem; letter-spacing: 1px; }
   .fila:hover, .fila.fila-vacia, .fila.fila-vacia:hover { background: transparent; }
   /* Cajas pegadas: una línea suave arriba de cada título para separarlas */
   .planta .seccion + .seccion .seccion-titulo { border-top: 1px solid #b3b3b3; }
