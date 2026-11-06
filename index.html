@@ -3295,6 +3295,38 @@
     const p = document.getElementById('panel-colores-ct');
     if (p) p.classList.remove('visible');
   }
+  /* —— Fondos elegidos por el admin (fondo de pantalla y fondo de las cajas, en Jefes y en Cabina) —— */
+  const LS_FONDOS = 'tablero_fondos_v1';
+  const FONDOS_DEFAULT = { jefesPantalla: '#dedede', jefesCaja: '#e9e9e9', cabinaPantalla: '#ffffff', cabinaCaja: '#ffffff' };
+  function cargarFondos() {
+    try { const o = JSON.parse(localStorage.getItem(LS_FONDOS) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; }
+  }
+  function aplicarFondos() {
+    const f = cargarFondos();
+    let st = document.getElementById('fondos-custom');
+    if (!st) { st = document.createElement('style'); st.id = 'fondos-custom'; document.head.appendChild(st); }
+    let css = '';
+    if (f.jefesPantalla) css += 'body.modo-editable, body.modo-editable .top-bar{background:' + f.jefesPantalla + ' !important;}';
+    if (f.jefesCaja) css += 'body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion{background:' + f.jefesCaja + ' !important;}';
+    if (f.cabinaPantalla) css += 'body.modo-original, body.modo-original .top-bar{background:' + f.cabinaPantalla + ' !important;}';
+    if (f.cabinaCaja) css += 'body.modo-original .seccion, body.modo-original .seccion-titulo{background:' + f.cabinaCaja + ' !important;}';
+    st.textContent = css;
+  }
+  function setFondo(clave, valor) {
+    const f = cargarFondos();
+    f[clave] = valor;
+    try { localStorage.setItem(LS_FONDOS, JSON.stringify(f)); } catch (e) {}
+    aplicarFondos();
+  }
+  function resetFondos() {
+    try { localStorage.removeItem(LS_FONDOS); } catch (e) {}
+    aplicarFondos();
+    abrirPanelColoresCT();
+  }
+  try { aplicarFondos(); } catch (eF) {}
+  window.setFondo = setFondo;
+  window.resetFondos = resetFondos;
+
   function abrirPanelColoresCT() {
     try { if (typeof cargarSesion === 'function') cargarSesion(); } catch (e) {}
     if (!(typeof sesionActual !== 'undefined' && sesionActual && sesionActual.esAdmin)) {
@@ -3306,6 +3338,19 @@
     if (!panel || !body) return;
     let html = '<p style="font-size:0.78rem;color:#666;margin:0 0 10px">Cada CT es independiente. ' +
       'No afecta el gris de Cabina al registrar. Clic fuera o ✕ para cerrar.</p>';
+    // Fondos de pantalla y de cajas
+    const fo = Object.assign({}, FONDOS_DEFAULT, cargarFondos());
+    html += '<div style="padding:8px;border:1px solid #c8c8c8;background:#f7f7f7;margin-bottom:12px;max-width:500px">';
+    html += '<div style="font-weight:800;margin-bottom:6px">Fondos</div>';
+    html += '<div style="display:grid;grid-template-columns:auto auto;gap:6px 14px;font-size:0.8rem;color:#444;align-items:center">';
+    html += '<label>Jefes · pantalla <input type="color" value="' + fo.jefesPantalla + '" oninput="setFondo(\'jefesPantalla\',this.value)"></label>';
+    html += '<label>Jefes · cajas <input type="color" value="' + fo.jefesCaja + '" oninput="setFondo(\'jefesCaja\',this.value)"></label>';
+    html += '<label>Cabina · pantalla <input type="color" value="' + fo.cabinaPantalla + '" oninput="setFondo(\'cabinaPantalla\',this.value)"></label>';
+    html += '<label>Cabina · cajas <input type="color" value="' + fo.cabinaCaja + '" oninput="setFondo(\'cabinaCaja\',this.value)"></label>';
+    html += '</div>';
+    html += '<div style="margin-top:8px;font-size:0.72rem;color:#777">Se guarda en esta PC. Vale para tarde y noche.</div>';
+    html += '<button type="button" class="btn" style="margin-top:6px;min-width:auto;min-height:26px;padding:2px 10px;font-size:0.75rem;background:#757575" onclick="resetFondos()">Restablecer fondos</button>';
+    html += '</div>';
     html += '<div style="display:flex;flex-direction:column;gap:8px;max-width:500px">';
     Object.keys(CT_COLORES_DEFAULT).forEach(function (cod) {
       const col = colorCTEfectivo(cod);
