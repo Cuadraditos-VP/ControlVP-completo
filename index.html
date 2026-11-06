@@ -2798,7 +2798,6 @@
   /* —— Recuadros de cada puesto: más compactos, cuenta de gente, franja del turno, filas vacías discretas —— */
   .seccion-titulo { height: 32px; padding: 0 12px; font-size: 0.85rem; }
   .seccion-cuenta { margin-left: 8px; margin-right: auto; font-weight: 600; color: #8a7355; font-size: 0.8rem; }
-  .seccion-cuenta.completo { color: #2e7d32; }
   .filas { padding: 2px 0; }
   .fila { height: 34px; min-height: 34px; padding: 2px 8px 2px 6px; border-left: 4px solid transparent; }
   .turno-select { padding: 3px 2px; }
@@ -10313,7 +10312,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     setTimeout(aplicarPendingFocusCelda, 0);
   }
 
-  /** Recuadros: cuenta "ocupados/lugares" en el título y marca de filas vacías. */
+  /** Recuadros: cantidad de gente cargada en el título y marca de filas vacías. */
   function actualizarCuentasSecciones() {
     try {
       document.querySelectorAll('#plantas .seccion').forEach(function (secEl) {
@@ -10321,7 +10320,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         const span = tit && tit.querySelector('span');
         if (!span) return;
         const esNov = (span.textContent || '').trim().toUpperCase() === 'NOVEDADES';
-        let llenos = 0, total = 0;
+        let llenos = 0;
         secEl.querySelectorAll('.fila').forEach(function (f) {
           const selT = f.querySelector('.turno-select');
           const selN = f.querySelector('.nombre-select');
@@ -10331,7 +10330,6 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           const vacia = !tieneNombre && !(selT && selT.value) && !(nota && String(nota.value || '').trim()) &&
             !(selN && selN.classList.contains('casillero-vacio-cierre'));
           f.classList.toggle('fila-vacia', vacia);
-          total++;
           if (tieneNombre) llenos++;
         });
         let c = tit.querySelector('.seccion-cuenta');
@@ -10341,9 +10339,8 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           c.className = 'seccion-cuenta';
           span.after(c);
         }
-        c.textContent = '· ' + llenos + '/' + total;
-        c.title = llenos + ' ocupados de ' + total + ' lugares';
-        c.classList.toggle('completo', total > 0 && llenos === total);
+        c.textContent = '· ' + llenos;
+        c.title = llenos === 1 ? '1 persona cargada' : (llenos + ' personas cargadas');
       });
     } catch (e) { console.warn('cuentas secciones', e); }
   }
