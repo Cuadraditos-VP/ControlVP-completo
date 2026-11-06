@@ -9626,6 +9626,22 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     const codigosNovedades = mapaCodigosNovedades(data);
     // En CABINA: dónde quedó cada cajero según Jefes (para el texto "pasó a...")
     const ubicacionesJefes = (modo === 'original' && editableData) ? mapaUbicacionesPorNombre(editableData) : null;
+    // Cada caja editable termina siempre con una fila vacía: si se programa la última, se agrega otra
+    if (editable) {
+      try {
+        data.plantas.forEach(function (pl) {
+          (pl.secciones || []).forEach(function (sec) {
+            const filas = sec.filas || (sec.filas = []);
+            const ult = filas[filas.length - 1];
+            const nomUlt = ult ? String(ult.nombre || '').trim() : '';
+            const ocupada = !ult || !!(ult.turno || (nomUlt && nomUlt !== '—') || ult.check || (ult.nota && String(ult.nota).trim()));
+            if (ocupada) {
+              filas.push(sec.titulo === 'NOVEDADES' ? { turno: '', nombre: '', nota: '' } : { turno: '', nombre: '', check: false });
+            }
+          });
+        });
+      } catch (eFV) { console.warn('fila vacia al final', eFV); }
+    }
     data.plantas.forEach((planta, pIdx) => {
       const plantaDiv = document.createElement('div');
       plantaDiv.className = 'planta';
