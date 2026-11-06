@@ -2853,21 +2853,27 @@
   .fila.ct-bloque:not(.ct-sigue) { padding-top: 3px; }
   .fila.ct-bloque.ct-fin { padding-bottom: 3px; }
   .fila.ct-bloque.ct-fin .turno-select { margin-bottom: 0; }
-  /* Recuadro fino del color del CT que encierra el CT y los nombres de ese turno */
-  .fila.ct-bloque { position: relative; }
-  .fila.ct-bloque::before {
-    content: ''; position: absolute; z-index: 2; pointer-events: none;
+  /* Bloque del CT: fondo del color del turno (::before) y recuadro fino (::after) que encierran el CT y sus nombres */
+  .fila.ct-bloque { position: relative; z-index: 0; }
+  .fila.ct-bloque::before, .fila.ct-bloque::after {
+    content: ''; position: absolute; pointer-events: none;
     left: 10px; right: 8px; top: 0; bottom: -1px;
+  }
+  .fila.ct-bloque::before { z-index: -1; background: var(--ct-fondo, transparent); }
+  .fila.ct-bloque::after {
+    z-index: 2;
     border-left: 1px solid var(--ct-borde, transparent); border-right: 1px solid var(--ct-borde, transparent);
   }
-  .fila.ct-bloque:not(.ct-sigue)::before { top: 3px; border-top: 1px solid var(--ct-borde, transparent); }
-  .fila.ct-bloque.ct-fin::before { bottom: 3px; border-bottom: 1px solid var(--ct-borde, transparent); }
-  /* El recuadro termina antes del tilde / nota / botón de quitar */
-  .fila.ct-bloque:has(.btn-quitar-fila)::before { right: 42px; }
-  .fila.ct-bloque.con-check::before { right: 36px; }
-  .fila.ct-bloque.con-check:has(.btn-quitar-fila)::before { right: 70px; }
-  .fila.ct-bloque.con-nota::before { right: 72px; }
-  .fila.ct-bloque.con-nota:has(.btn-quitar-fila)::before { right: 106px; }
+  .fila.ct-bloque:not(.ct-sigue)::before, .fila.ct-bloque:not(.ct-sigue)::after { top: 3px; }
+  .fila.ct-bloque:not(.ct-sigue)::after { border-top: 1px solid var(--ct-borde, transparent); }
+  .fila.ct-bloque.ct-fin::before, .fila.ct-bloque.ct-fin::after { bottom: 3px; }
+  .fila.ct-bloque.ct-fin::after { border-bottom: 1px solid var(--ct-borde, transparent); }
+  /* El bloque termina antes del tilde / nota / botón de quitar */
+  .fila.ct-bloque:has(.btn-quitar-fila)::before, .fila.ct-bloque:has(.btn-quitar-fila)::after { right: 42px; }
+  .fila.ct-bloque.con-check::before, .fila.ct-bloque.con-check::after { right: 36px; }
+  .fila.ct-bloque.con-check:has(.btn-quitar-fila)::before, .fila.ct-bloque.con-check:has(.btn-quitar-fila)::after { right: 70px; }
+  .fila.ct-bloque.con-nota::before, .fila.ct-bloque.con-nota::after { right: 72px; }
+  .fila.ct-bloque.con-nota:has(.btn-quitar-fila)::before, .fila.ct-bloque.con-nota:has(.btn-quitar-fila)::after { right: 106px; }
   </style>
 </head>
 <body class="modo-original">
@@ -10423,17 +10429,18 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
             f.classList.remove('ct-sigue');
             selT.style.removeProperty('background');
             const colV = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(v) : null;
-            if (colV) f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg);
+            if (colV) { f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg); f.style.setProperty('--ct-fondo', colV.bg); }
           } else if (ctActual && !f.classList.contains('fila-vacia')) {
             f.classList.add('ct-bloque', 'ct-sigue');
             const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
             if (col && col.bg) selT.style.setProperty('background', col.bg, 'important');
-            if (col) f.style.setProperty('--ct-borde', col.fgNombre || col.fg);
+            if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', col.bg); }
           } else {
             ctActual = '';
             f.classList.remove('ct-bloque', 'ct-sigue');
             selT.style.removeProperty('background');
             f.style.removeProperty('--ct-borde');
+            f.style.removeProperty('--ct-fondo');
           }
         });
         // Última fila de cada bloque: deja el margen de abajo como antes
