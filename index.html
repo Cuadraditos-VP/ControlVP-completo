@@ -2932,6 +2932,13 @@
   #plantas .fila.ct-bloque select.turno-select { background: transparent !important; }
   .fila.ct-bloque:not(.ct-sigue)::before { border-top-left-radius: 6px; border-top-right-radius: 6px; }
   .fila.ct-bloque.ct-fin::before { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+
+  /* Jefes: las cajas sin borde ni fondo, directo sobre el fondo de pantalla (Cabina sigue con tarjetas) */
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { background: transparent; border: none; box-shadow: none; }
+  body.modo-editable .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo { background: transparent; }
+  /* Cada caja con un fondo apenas más claro que la pantalla, sin borde */
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { background: #e9e9e9; }
+  body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion { background: #dee4ea; }
   </style>
 </head>
 <body class="modo-original">
