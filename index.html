@@ -2921,6 +2921,17 @@
   .planta-header { margin-bottom: 2px; }
   .seccion, body.turno-noche .seccion, .planta .seccion + .seccion { border: 1px solid #6e6e6e; }
   .planta .seccion + .seccion .seccion-titulo { border-top: none; }
+
+  /* Aclaraciones de horarios sin recuadro, directo sobre el fondo de pantalla */
+  .leyenda-horarios { background: transparent; border: none; box-shadow: none; }
+  .leyenda-horarios-header, body.turno-noche .leyenda-horarios-header { background: transparent; border-bottom: none; padding-left: 0; padding-right: 0; justify-content: flex-start; gap: 12px; }
+  .leyenda-horarios-body { padding-left: 0; padding-right: 0; padding-top: 2px; }
+
+  /* Bloques de CT y nombres sin borde y con esquinas redondeadas */
+  .fila.ct-bloque::after { border-color: transparent !important; }
+  #plantas .fila.ct-bloque select.turno-select { background: transparent !important; }
+  .fila.ct-bloque:not(.ct-sigue)::before { border-top-left-radius: 6px; border-top-right-radius: 6px; }
+  .fila.ct-bloque.ct-fin::before { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
   </style>
 </head>
 <body class="modo-original">
@@ -10496,7 +10507,6 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           } else if (ctActual && !f.classList.contains('fila-vacia')) {
             f.classList.add('ct-bloque', 'ct-sigue');
             const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
-            if (col && col.bg) selT.style.setProperty('background', col.bg, 'important');
             if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', col.bg); }
           } else {
             ctActual = '';
