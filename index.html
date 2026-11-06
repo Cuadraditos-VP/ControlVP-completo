@@ -2849,6 +2849,10 @@
   /* CT que continúa: el casillero se estira por las filas que heredan ese turno */
   .fila.ct-bloque { padding-top: 0; padding-bottom: 0; }
   .fila.ct-bloque .turno-select { align-self: stretch; height: auto; margin-bottom: -1px; position: relative; z-index: 1; border: none !important; }
+  /* Arriba y abajo del bloque, la misma distancia a las líneas que antes */
+  .fila.ct-bloque:not(.ct-sigue) { padding-top: 3px; }
+  .fila.ct-bloque.ct-fin { padding-bottom: 3px; }
+  .fila.ct-bloque.ct-fin .turno-select { margin-bottom: 0; }
   </style>
 </head>
 <body class="modo-original">
@@ -10412,6 +10416,12 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
             f.classList.remove('ct-bloque', 'ct-sigue');
             selT.style.removeProperty('background');
           }
+        });
+        // Última fila de cada bloque: deja el margen de abajo como antes
+        const filasSec = secEl.querySelectorAll('.fila');
+        filasSec.forEach(function (f, i) {
+          const sig = filasSec[i + 1];
+          f.classList.toggle('ct-fin', f.classList.contains('ct-bloque') && !(sig && sig.classList.contains('ct-sigue')));
         });
       });
     } catch (e) { console.warn('filas vacias', e); }
