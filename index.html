@@ -2845,6 +2845,14 @@
 
   /* Nombres un poco más chicos */
   .nombre-select { font-size: 15px; }
+
+  /* CT que continúa: el casillero se estira por las filas que heredan ese turno */
+  .fila.ct-bloque { padding-top: 0; padding-bottom: 0; }
+  .fila.ct-bloque .turno-select { align-self: stretch; height: auto; margin-bottom: -1px; position: relative; z-index: 1; border: none !important; }
+  /* Arriba y abajo del bloque, la misma distancia a las líneas que antes */
+  .fila.ct-bloque:not(.ct-sigue) { padding-top: 3px; }
+  .fila.ct-bloque.ct-fin { padding-bottom: 3px; }
+  .fila.ct-bloque.ct-fin .turno-select { margin-bottom: 0; }
   </style>
 </head>
 <body class="modo-original">
@@ -10387,6 +10395,33 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           const vacia = !tieneNombre && !(selT && selT.value) && !(nota && String(nota.value || '').trim()) &&
             !(selN && selN.classList.contains('casillero-vacio-cierre'));
           f.classList.toggle('fila-vacia', vacia);
+        });
+        // El casillero del CT se estira hacia abajo por las filas que lo heredan (sin CT propio)
+        let ctActual = '';
+        secEl.querySelectorAll('.fila').forEach(function (f) {
+          const selT = f.querySelector('.turno-select');
+          if (!selT) return;
+          const v = String(selT.value || '').trim().toUpperCase();
+          if (v) {
+            ctActual = v;
+            f.classList.add('ct-bloque');
+            f.classList.remove('ct-sigue');
+            selT.style.removeProperty('background');
+          } else if (ctActual && !f.classList.contains('fila-vacia')) {
+            f.classList.add('ct-bloque', 'ct-sigue');
+            const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
+            if (col && col.bg) selT.style.setProperty('background', col.bg, 'important');
+          } else {
+            ctActual = '';
+            f.classList.remove('ct-bloque', 'ct-sigue');
+            selT.style.removeProperty('background');
+          }
+        });
+        // Última fila de cada bloque: deja el margen de abajo como antes
+        const filasSec = secEl.querySelectorAll('.fila');
+        filasSec.forEach(function (f, i) {
+          const sig = filasSec[i + 1];
+          f.classList.toggle('ct-fin', f.classList.contains('ct-bloque') && !(sig && sig.classList.contains('ct-sigue')));
         });
       });
     } catch (e) { console.warn('filas vacias', e); }
