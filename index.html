@@ -2881,6 +2881,29 @@
 
   /* Sin renglones separadores: los bloques de color ya separan los turnos */
   #plantas .fila, #plantas .fila.cambio-grupo { border-bottom-color: transparent !important; }
+
+  /* —— Marco neutro (grises): el color queda solo para los turnos —— */
+  :root {
+    --bg-jefes-tarde: #dedede;
+    --bg-jefes-noche: #d2d9e0;
+    --header-red: #4a4a4a;
+    --header-blue: #37434f;
+  }
+  .seccion-titulo { background: #cfcfcf; color: #1f1f1f; }
+  body.turno-noche .seccion-titulo { background: #c4ced8; color: #1f1f1f; }
+  .seccion, body.turno-noche .seccion { border-color: #b3b3b3; }
+  .leyenda-horarios { border-color: #c4c4c4; }
+  .leyenda-horarios-header { background: #e6e6e6; color: #333; border-bottom-color: #cfcfcf; }
+  body.turno-noche .leyenda-horarios-header { background: #e1e6eb; color: #2a3540; }
+  .top-bar .btn { background: #555555; }
+  .app-titulo { color: #333; border-right-color: #c8c8c8; }
+  #fecha, #turno-display, body.modo-editable #fecha, body.modo-editable #turno-display { color: #2b2b2b; border-color: #c8c8c8; background: #ffffff; }
+  body.turno-noche.modo-editable #fecha, body.turno-noche.modo-editable #turno-display { color: #22303c; border-color: #b8c4cf; background: #f7f9fb; }
+  .fecha-flecha { background: #ececec; border-color: #c8c8c8; color: #444; }
+  .fecha-flecha:hover:not(:disabled) { background: #dddddd; }
+  .leyenda-horarios-header .tipo-dia { background: #555555; }
+  .btn-add { background: #666666; }
+  .btn-add:hover { background: #4d4d4d; }
   </style>
 </head>
 <body class="modo-original">
