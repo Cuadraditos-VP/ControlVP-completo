@@ -2794,6 +2794,33 @@
   .top-bar .btn-sesion { background: #37474f; }
   .top-bar .btn-sesion.activa { background: #1e5a3a; }
   .top-bar #btnCajerosConexion { background: #00838f; }
+
+  /* —— Recuadros de cada puesto: más compactos, cuenta de gente, franja del turno, filas vacías discretas —— */
+  .seccion-titulo { height: 32px; padding: 0 12px; font-size: 0.85rem; }
+  .seccion-cuenta { margin-left: 8px; margin-right: auto; font-weight: 600; color: #8a7355; font-size: 0.8rem; }
+  .seccion-cuenta.completo { color: #2e7d32; }
+  .filas { padding: 2px 0; }
+  .fila { height: 34px; min-height: 34px; padding: 2px 8px 2px 6px; border-left: 4px solid transparent; }
+  .turno-select { padding: 3px 2px; }
+  .nombre-select { padding: 3px 8px; }
+  /* El nombre ocupa todo el ancho cuando no hay botón para quitar la fila */
+  .fila:not(.con-check):not(.con-nota):not(:has(.btn-quitar-fila)) { grid-template-columns: 68px 1fr; }
+  /* Franja del color del turno al costado de cada grupo */
+  .fila:has(.nombre-select.rojo)     { border-left-color: #c62828; }
+  .fila:has(.nombre-select.azul)     { border-left-color: #1565c0; }
+  .fila:has(.nombre-select.verde)    { border-left-color: #2e7d32; }
+  .fila:has(.nombre-select.naranja)  { border-left-color: #e65100; }
+  .fila:has(.nombre-select.violeta)  { border-left-color: #6a1b9a; }
+  .fila:has(.nombre-select.turquesa) { border-left-color: #00695c; }
+  .fila:has(.nombre-select.cian)     { border-left-color: #00838f; }
+  .fila:has(.nombre-select.coral)    { border-left-color: #d84315; }
+  .fila:has(.nombre-select.gris)     { border-left-color: #90a4ae; }
+  /* Filas vacías (sin turno ni nombre): más bajitas y suaves */
+  .fila.fila-vacia { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; background: rgba(0,0,0,0.015); }
+  .fila.fila-vacia .turno-select, .fila.fila-vacia .nombre-select { padding-top: 0; padding-bottom: 0; height: 20px; }
+  .fila.fila-vacia .btn-quitar-fila { height: 18px; }
+  .fila.fila-vacia:hover { background: #faf8f4; }
+  @media print { .fila.fila-vacia { height: auto; } }
   </style>
 </head>
 <body class="modo-original">
@@ -10281,9 +10308,49 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       contenedor.appendChild(plantaDiv);
     });
     actualizarSliderFecha();
+    actualizarCuentasSecciones();
   
     setTimeout(aplicarPendingFocusCelda, 0);
   }
+
+  /** Recuadros: cuenta "ocupados/lugares" en el título y marca de filas vacías. */
+  function actualizarCuentasSecciones() {
+    try {
+      document.querySelectorAll('#plantas .seccion').forEach(function (secEl) {
+        const tit = secEl.querySelector('.seccion-titulo');
+        const span = tit && tit.querySelector('span');
+        if (!span) return;
+        const esNov = (span.textContent || '').trim().toUpperCase() === 'NOVEDADES';
+        let llenos = 0, total = 0;
+        secEl.querySelectorAll('.fila').forEach(function (f) {
+          const selT = f.querySelector('.turno-select');
+          const selN = f.querySelector('.nombre-select');
+          const nom = selN ? String(selN.value || '').trim() : '';
+          const tieneNombre = !!nom && nom !== '—';
+          const nota = f.querySelector('.nota-novedad');
+          const vacia = !tieneNombre && !(selT && selT.value) && !(nota && String(nota.value || '').trim()) &&
+            !(selN && selN.classList.contains('casillero-vacio-cierre'));
+          f.classList.toggle('fila-vacia', vacia);
+          total++;
+          if (tieneNombre) llenos++;
+        });
+        let c = tit.querySelector('.seccion-cuenta');
+        if (esNov) { if (c) c.remove(); return; }
+        if (!c) {
+          c = document.createElement('span');
+          c.className = 'seccion-cuenta';
+          span.after(c);
+        }
+        c.textContent = '· ' + llenos + '/' + total;
+        c.title = llenos + ' ocupados de ' + total + ' lugares';
+        c.classList.toggle('completo', total > 0 && llenos === total);
+      });
+    } catch (e) { console.warn('cuentas secciones', e); }
+  }
+  ['change', 'input', 'click', 'keyup'].forEach(function (ev) {
+    document.addEventListener(ev, function () { setTimeout(actualizarCuentasSecciones, 30); }, true);
+  });
+
   function actualizarColoresSeccion(filasDiv) {
     let ultimoTurno = '';
     const filas = filasDiv.querySelectorAll('.fila');
