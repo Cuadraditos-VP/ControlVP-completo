@@ -2745,64 +2745,121 @@
     min-width: 10rem;
   }
 
+
+  /* —— Barra de arriba compacta: título, fecha con flechas, turno, hoja y sesión en un renglón; botones agrupados abajo —— */
+  body { padding-top: 10px; }
+  .top-bar { padding: 8px 12px; margin-bottom: 12px; }
+  .top-row-fecha { justify-content: flex-start; align-items: center; gap: 10px 14px; }
+  .app-titulo {
+    font-weight: 800; font-size: 1.05rem; letter-spacing: 2px; color: #5c4033;
+    padding-right: 14px; border-right: 2px solid #d4c4a8; white-space: nowrap;
+  }
+  body.turno-noche.modo-editable .app-titulo { color: #1a5276; border-right-color: #a9cce3; }
+  .fecha-linea { flex: 0 1 auto; align-items: center; }
+  .fecha-nav { align-items: stretch; gap: 0; }
+  .fecha-slider-wrap { display: none !important; }
+  .fecha-con-cal { align-items: stretch; }
+  #fecha {
+    font-size: 1.15rem; padding: 4px 14px; min-width: 0; width: 26rem; max-width: 100%;
+    min-height: 0; height: 40px;
+  }
+  .fecha-flecha {
+    width: 38px; border: 2px solid #d4c4a8; background: #f0e9dc; color: #5c4033;
+    font-size: 0.9rem; cursor: pointer; border-radius: 0;
+  }
+  #fechaAnterior { border-right: none; }
+  #fechaSiguiente { border-left: none; }
+  .fecha-flecha:hover:not(:disabled) { background: #e0d4bc; }
+  .fecha-flecha:disabled { opacity: 0.35; cursor: default; }
+  .top-row-turno { margin-top: 0; }
+  #turno-display, .top-row-turno #turno-display { height: 40px; padding: 4px 12px; font-size: 1.05rem; min-width: 0; width: 110px; }
+  .top-row-turno .badge { height: 40px; font-size: 1.05rem; min-width: 110px; margin-left: 0; }
+  .sesion-zona { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  #badge-sesion, #badge-sesion.visible { display: none !important; }
+  .top-bar .btn-sesion { padding: 6px 12px; font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
+  .controles {
+    flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start;
+    gap: 8px 0; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.08);
+  }
+  .grupo-btns { display: flex; gap: 4px; padding: 0 12px; border-left: 1px solid rgba(0,0,0,0.15); }
+  .controles > .grupo-btns:first-child { padding-left: 0; border-left: none; }
+  /* Grupo sin botones visibles: no ocupa lugar */
+  .grupo-btns:not(:has(> .btn:not([style*="display: none"]):not([style*="display:none"]))) { display: none; }
+  .top-bar .btn { min-width: 38px; min-height: 38px; padding: 6px 9px; font-size: 1.05rem; background: #5c4033; }
+  .top-bar .btn-reg { background: #6a1b9a; }
+  .top-bar .btn-cierre { background: #4a148c; }
+  .top-bar .btn-unlock, .top-bar .btn-peligro { background: #b71c1c; }
+  .top-bar .grupo-admin .btn { background: #455a64; }
+  .top-bar .grupo-admin .btn-peligro { background: #b71c1c; }
+  .top-bar .btn-sesion { background: #37474f; }
+  .top-bar .btn-sesion.activa { background: #1e5a3a; }
+  .top-bar #btnCajerosConexion { background: #00838f; }
   </style>
 </head>
 <body class="modo-original">
   <div class="top-bar">
     <div class="top-row top-row-fecha">
+      <div class="app-titulo">CONTROL VP</div>
       <div class="fecha-linea">
-        <label>Fecha:</label>
         <div class="fecha-nav">
           <div class="fecha-slider-wrap" title="Desplazá para cambiar de fecha del historial">
             <input type="range" id="fecha-slider" min="0" max="0" value="0" disabled>
           </div>
+          <button type="button" class="fecha-flecha" id="fechaAnterior" onclick="moverFecha(-1)" title="Fecha anterior del historial" disabled>◀</button>
           <div class="fecha-con-cal">
             <input type="text" id="fecha" value="30 de Agosto 2026" readonly title="Clic para abrir calendario">
             <!-- VF solo desde Programación Cajeros -->
             <div id="cal-popup" class="cal-popup"></div>
           </div>
-        </div>
-        </div>
-      <div class="controles">
-        <div class="controles-fila">
-          <button class="btn btn-new btn-solo-cabina" onclick="nuevoRegistro()" title="Nuevo" style="display:none">🆕</button>
-          <button class="btn btn-reg btn-solo-cabina" onclick="registrar()" title="Registrar" style="display:none">📋</button>
-          <button class="btn btn-emp btn-solo-cabina" id="btnListaEmpleados" onclick="abrirListaEmpleados()" title="Lista de empleados" style="display:none">👥</button>
-          <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnCajerosDia" onclick="abrirPanelCajerosDia()" title="CAD" style="display:none">📌</button>
-          <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnRankingTemprano" onclick="abrirRankingSalidasTemprano()" title="Ranking salidas temprano">⏱</button>
-          <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnHorasExtra" onclick="abrirPanelHorasExtra()" title="Horas extra: programadas vs efectivas" style="background:#6a1b9a">HE</button>
-          <button class="btn btn-save" onclick="guardar()" title="Guardar">💾</button>
-          <button class="btn btn-hist btn-solo-cabina" id="btnHistorial" onclick="abrirHistorial()" title="Historial" style="display:none">📂</button>
-          <button class="btn btn-hist btn-respaldo-admin" id="btnColoresCT" onclick="abrirPanelColoresCT()" title="Colores de CT (admin)" style="display:none;background:#5c6bc0">🎨</button>
-          <button class="btn btn-hist btn-respaldo-admin" id="btnExportRespaldo" onclick="exportarRespaldoCompleto()" title="Exportar respaldo (JSON)" style="display:none">⬇️</button>
-          <button class="btn btn-hist btn-respaldo-admin" id="btnImportRespaldo" onclick="document.getElementById('input-import-respaldo').click()" title="Importar respaldo JSON" style="display:none">⬆️</button>
-          <button class="btn btn-hist btn-respaldo-admin" id="btnLimpiarDia" onclick="limpiarDatosDiaActual()" title="Borrar todos los datos del día (admin)" style="display:none;background:#b71c1c">🗑️</button>
-          <button class="btn btn-hist btn-respaldo-admin" id="btnAuditoria" onclick="abrirPanelAuditoria()" title="Registro de auditoría (admin)" style="display:none;background:#455a64">📜</button>
-          <input type="file" id="input-import-respaldo" accept="application/json,.json" style="display:none" onchange="importarRespaldoDesdeArchivo(event)" />
-        </div>
-        <div class="controles-fila">
-          <button class="btn btn-undo" id="btnUndo" onclick="deshacer()" title="Deshacer (Ctrl+Z)" disabled>↶</button>
-          <button class="btn btn-redo" id="btnRedo" onclick="rehacer()" title="Rehacer (Ctrl+Y)" disabled>↷</button>
-          <button class="btn btn-sesion" id="btnSesion" onclick="abrirPanelSesion()" title="Sesión / usuarios">👤</button>
-          <button class="btn" id="btnCajerosConexion" onclick="abrirConexionCajeros()" title="Conectar con Cajeros (código de invitación)" style="display:none;background:#00838f">🔗</button>
-          <span id="badge-sesion"></span>
-          <button class="btn btn-unlock btn-solo-cabina" onclick="desbloquearOriginal()" title="Desbloquear" style="display:none">🔓</button>
-          <button class="btn btn-cierre" onclick="cierreFinalFecha()" title="Cierre final de la fecha">🔒</button>
-          <button class="btn btn-resumen-jornada" id="btnResumenJornada" onclick="abrirResumenJornada()" title="Resumen de la jornada (hoja Jefes)" style="display:none">📋</button>
-          <button class="btn btn-informe-jefes" id="btnInformeJefes" onclick="abrirPanelInformeJefes()" title="Informe de jefes (texto libre)" style="display:none;background:#00695c">📝</button>
-          <button class="btn btn-full" onclick="imprimirHojaActual()" title="Imprimir hoja actual (Cabina o Jefes)">🖨</button>
-          <button class="btn btn-full" onclick="compartirHojaActual()" title="Compartir hoja actual como imagen">📤</button>
-          <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa">⛶</button>
+          <button type="button" class="fecha-flecha" id="fechaSiguiente" onclick="moverFecha(1)" title="Fecha siguiente del historial" disabled>▶</button>
         </div>
       </div>
+      <div class="top-row-turno">
+        <div class="turno-nav">
+          <input type="text" id="turno-display" value="TARDE" readonly>
+          <span id="badge" class="badge badge-cabina">CABINA</span>
+          <!-- indicador-borrador reemplazado por estado del botón 💾 -->
+        </div>
+      </div>
+      <div class="sesion-zona">
+        <button class="btn" id="btnCajerosConexion" onclick="abrirConexionCajeros()" title="Conectar con Cajeros (código de invitación)" style="display:none">🔗</button>
+        <span id="badge-sesion"></span>
+        <button class="btn btn-sesion" id="btnSesion" onclick="abrirPanelSesion()" title="Sesión / usuarios">👤</button>
+      </div>
     </div>
-    <div class="top-row-turno">
-      <label>Turno:</label>
-      <div class="turno-nav">
-        <span class="turno-alineacion" aria-hidden="true"></span>
-        <input type="text" id="turno-display" value="TARDE" readonly>
-        <span id="badge" class="badge badge-cabina">CABINA</span>
-        <!-- indicador-borrador reemplazado por estado del botón 💾 -->
+    <div class="controles">
+      <div class="grupo-btns" title="Deshacer, rehacer y guardar">
+        <button class="btn btn-undo" id="btnUndo" onclick="deshacer()" title="Deshacer (Ctrl+Z)" disabled>↶</button>
+        <button class="btn btn-redo" id="btnRedo" onclick="rehacer()" title="Rehacer (Ctrl+Y)" disabled>↷</button>
+        <button class="btn btn-save" onclick="guardar()" title="Guardar">💾</button>
+      </div>
+      <div class="grupo-btns">
+        <button class="btn btn-new btn-solo-cabina" onclick="nuevoRegistro()" title="Nuevo" style="display:none">🆕</button>
+        <button class="btn btn-reg btn-solo-cabina" onclick="registrar()" title="Registrar" style="display:none">📋</button>
+        <button class="btn btn-unlock btn-solo-cabina" onclick="desbloquearOriginal()" title="Desbloquear" style="display:none">🔓</button>
+        <button class="btn btn-cierre" onclick="cierreFinalFecha()" title="Cierre final de la fecha">🔒</button>
+        <button class="btn btn-hist btn-solo-cabina" id="btnHistorial" onclick="abrirHistorial()" title="Historial" style="display:none">📂</button>
+        <button class="btn btn-resumen-jornada" id="btnResumenJornada" onclick="abrirResumenJornada()" title="Resumen de la jornada (hoja Jefes)" style="display:none">📋</button>
+        <button class="btn btn-informe-jefes" id="btnInformeJefes" onclick="abrirPanelInformeJefes()" title="Informe de jefes (texto libre)" style="display:none">📝</button>
+      </div>
+      <div class="grupo-btns">
+        <button class="btn btn-emp btn-solo-cabina" id="btnListaEmpleados" onclick="abrirListaEmpleados()" title="Lista de empleados" style="display:none">👥</button>
+        <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnCajerosDia" onclick="abrirPanelCajerosDia()" title="CAD" style="display:none">📌</button>
+        <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnRankingTemprano" onclick="abrirRankingSalidasTemprano()" title="Ranking salidas temprano">⏱</button>
+        <button class="btn btn-cajeros-dia btn-solo-cabina" id="btnHorasExtra" onclick="abrirPanelHorasExtra()" title="Horas extra: programadas vs efectivas">HE</button>
+      </div>
+      <div class="grupo-btns">
+        <button class="btn btn-full" onclick="imprimirHojaActual()" title="Imprimir hoja actual (Cabina o Jefes)">🖨</button>
+        <button class="btn btn-full" onclick="compartirHojaActual()" title="Compartir hoja actual como imagen">📤</button>
+        <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa">⛶</button>
+      </div>
+      <div class="grupo-btns grupo-admin">
+        <button class="btn btn-hist btn-respaldo-admin" id="btnColoresCT" onclick="abrirPanelColoresCT()" title="Colores de CT (admin)" style="display:none">🎨</button>
+        <button class="btn btn-hist btn-respaldo-admin" id="btnExportRespaldo" onclick="exportarRespaldoCompleto()" title="Exportar respaldo (JSON)" style="display:none">⬇️</button>
+        <button class="btn btn-hist btn-respaldo-admin" id="btnImportRespaldo" onclick="document.getElementById('input-import-respaldo').click()" title="Importar respaldo JSON" style="display:none">⬆️</button>
+        <button class="btn btn-hist btn-respaldo-admin btn-peligro" id="btnLimpiarDia" onclick="limpiarDatosDiaActual()" title="Borrar todos los datos del día (admin)" style="display:none">🗑️</button>
+        <button class="btn btn-hist btn-respaldo-admin" id="btnAuditoria" onclick="abrirPanelAuditoria()" title="Registro de auditoría (admin)" style="display:none">📜</button>
+        <input type="file" id="input-import-respaldo" accept="application/json,.json" style="display:none" onchange="importarRespaldoDesdeArchivo(event)" />
       </div>
     </div>
   </div>
@@ -11852,6 +11909,9 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       }
     }
     if (btn) {
+      btn.textContent = (sesionActual && sesionActual.user)
+        ? ((sesionActual.esAdmin ? '👑 ' : '👤 ') + sesionActual.user)
+        : '👤 Entrar';
       btn.classList.toggle('activa', !!(sesionActual && sesionActual.user));
       btn.title = (sesionActual && sesionActual.user)
         ? ('Sesión: ' + sesionActual.user + ' (clic para gestionar)')
@@ -13860,11 +13920,15 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     if (!slider) return;
     const grupos = fechasHistorialOrdenadas();
     window._histGruposOrdenados = grupos;
+    const flechaAnt = document.getElementById('fechaAnterior');
+    const flechaSig = document.getElementById('fechaSiguiente');
     if (!grupos.length) {
       slider.min = 0;
       slider.max = 0;
       slider.value = 0;
       slider.disabled = true;
+      if (flechaAnt) flechaAnt.disabled = true;
+      if (flechaSig) flechaSig.disabled = true;
       return;
     }
     slider.disabled = false;
@@ -13877,6 +13941,18 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     let idx = grupos.findIndex(g => g._clave === claveActual);
     if (idx < 0) idx = grupos.length - 1;
     slider.value = String(idx);
+    if (flechaAnt) flechaAnt.disabled = idx <= 0;
+    if (flechaSig) flechaSig.disabled = idx >= grupos.length - 1;
+  }
+
+  /** Flechas ◀ ▶ de la fecha: pasan a la fecha anterior/siguiente del historial. */
+  function moverFecha(paso) {
+    const slider = document.getElementById('fecha-slider');
+    if (!slider || slider.disabled) return;
+    const nuevo = parseInt(slider.value, 10) + paso;
+    if (nuevo < parseInt(slider.min, 10) || nuevo > parseInt(slider.max, 10)) return;
+    slider.value = String(nuevo);
+    onSliderFechaChange();
   }
 
   function onSliderFechaChange() {
