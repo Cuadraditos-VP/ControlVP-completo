@@ -2799,21 +2799,11 @@
   .seccion-titulo { height: 32px; padding: 0 12px; font-size: 0.85rem; }
   .seccion-cuenta { margin-left: 8px; margin-right: auto; font-weight: 600; color: #8a7355; font-size: 0.8rem; }
   .filas { padding: 2px 0; }
-  .fila { height: 34px; min-height: 34px; padding: 2px 8px 2px 6px; border-left: 4px solid transparent; }
+  .fila { height: 34px; min-height: 34px; padding: 2px 8px 2px 10px; }
   .turno-select { padding: 3px 2px; }
   .nombre-select { padding: 3px 8px; }
   /* El nombre ocupa todo el ancho cuando no hay botón para quitar la fila */
   .fila:not(.con-check):not(.con-nota):not(:has(.btn-quitar-fila)) { grid-template-columns: 68px 1fr; }
-  /* Franja del color del turno al costado de cada grupo */
-  .fila:has(.nombre-select.rojo)     { border-left-color: #c62828; }
-  .fila:has(.nombre-select.azul)     { border-left-color: #1565c0; }
-  .fila:has(.nombre-select.verde)    { border-left-color: #2e7d32; }
-  .fila:has(.nombre-select.naranja)  { border-left-color: #e65100; }
-  .fila:has(.nombre-select.violeta)  { border-left-color: #6a1b9a; }
-  .fila:has(.nombre-select.turquesa) { border-left-color: #00695c; }
-  .fila:has(.nombre-select.cian)     { border-left-color: #00838f; }
-  .fila:has(.nombre-select.coral)    { border-left-color: #d84315; }
-  .fila:has(.nombre-select.gris)     { border-left-color: #90a4ae; }
   /* Filas vacías (sin turno ni nombre): más bajitas y suaves */
   .fila.fila-vacia { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; background: rgba(0,0,0,0.015); }
   .fila.fila-vacia .turno-select, .fila.fila-vacia .nombre-select { padding-top: 0; padding-bottom: 0; height: 20px; }
@@ -2821,12 +2811,12 @@
   .fila.fila-vacia:hover { background: #faf8f4; }
   @media print { .fila.fila-vacia { height: auto; } }
 
-  /* Filas vacías: sin franja de color */
-  .fila.fila-vacia { border-left-color: transparent !important; }
   /* Columnas de las plantas al ancho justo: nombre más largo (con legajo) + 3 letras.
      --ancho-columna lo calcula la app (actualizarAnchoNombres). */
   @media (min-width: 1101px) {
-    .plantas { grid-template-columns: repeat(3, minmax(0, var(--ancho-columna, 1fr))); justify-content: center; gap: 18px; }
+    .plantas { grid-template-columns: repeat(3, minmax(0, var(--ancho-columna, 1fr))); justify-content: center; gap: 28px; }
+    /* Barra de arriba y aclaraciones de abajo: mismo ancho que las tres columnas */
+    .top-bar, .leyenda-horarios { max-width: calc(3 * var(--ancho-columna, 466px) + 2 * 28px); }
     .fila, .fila:not(.con-check):not(.con-nota):not(:has(.btn-quitar-fila)) { grid-template-columns: 42px minmax(0, 1fr); }
     .fila:has(.btn-quitar-fila) { grid-template-columns: 42px minmax(0, 1fr) 28px; }
     .fila.con-check { grid-template-columns: 42px minmax(0, 1fr) 22px 28px; }
@@ -10356,7 +10346,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         const pistas = [42, ancho];
         if (f.classList.contains('con-check')) pistas.push(22);
         if (f.querySelector('.btn-quitar-fila')) pistas.push(28);
-        const w = pistas.reduce(function (a, b) { return a + b; }, 0) + 6 * (pistas.length - 1) + 14 + 4 + 4;
+        const w = pistas.reduce(function (a, b) { return a + b; }, 0) + 6 * (pistas.length - 1) + 18 + 4;
         if (w > columna) columna = w;
       });
       document.documentElement.style.setProperty('--ancho-nombre', ancho + 'px');
