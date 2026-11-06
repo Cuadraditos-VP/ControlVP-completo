@@ -5169,6 +5169,8 @@
   function avisoJornadaIniciada() {
     const j = window.cvpTablero ? cvpTablero.jornada((originalData && originalData.fecha) || '') : null;
     alert('La jornada de este día ya empezó en recepción' + (j && j.por ? ' (' + j.por + ')' : '') + '.\n' +
+      (j && j.arranco ? (j.arranco === 'vacio' ? 'Cabina no había cargado nada: recepción arrancó el día con la hoja vacía.\n'
+        : 'Cabina no lo había registrado: lo registró recepción con lo que estaba cargado.\n') : '') +
       'Cabina ya no puede cambiar la programación: los cambios del día se hacen desde recepción.');
   }
   /** ¿La hoja Jefes admite modificaciones? Solo con clave, tras Registrar y sin cierre bloqueado */
@@ -10478,12 +10480,14 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       if (btn.id === 'btnResumenJornada') {
         return;
       }
-      // 🆕: solo cabina
+      // 🆕: cabina; o un jefe, si Cabina no registró el día de hoy (emergencia)
       if (btn.classList.contains('btn-new')) {
-        btn.style.display = esCabina ? '' : 'none';
-        btn.disabled = !esCabina;
-        btn.classList.toggle('btn-disabled', !esCabina);
-        btn.title = 'Nuevo registro (Cabina)';
+        const jefeEmerg = !esCabina && puedeArrancarDiaRecepcion();
+        const ok = esCabina || jefeEmerg;
+        btn.style.display = ok ? '' : 'none';
+        btn.disabled = !ok;
+        btn.classList.toggle('btn-disabled', !ok);
+        btn.title = esCabina ? 'Nuevo registro (Cabina)' : 'Arrancar el día: Cabina no lo registró';
         return;
       }
       if (btn.id === 'btnRankingTemprano') {
@@ -10513,7 +10517,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         if (pCT) pCT.classList.remove('visible');
       }
     } catch (eCol) {}
-    setBtn('.btn-new', esCabina);
+    setBtn('.btn-new', esCabina || puedeArrancarDiaRecepcion());
     setBtn('.btn-reg', esCabina && !enJefes);
     setBtn('.btn-unlock', (esCabina || (typeof puedeCerrarFecha === 'function' && puedeCerrarFecha())) && (!!originalBloqueado || !!cierreFinalActivo));
     const turnoVistaCierre = (document.getElementById('turno-display')?.value || 'TARDE').trim().toUpperCase();
@@ -10631,7 +10635,9 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         }
       } catch (eCf) {}
       if (originalBloqueado) {
-        badge.textContent = cierreFinalActivo ? 'CABINA · cierre' : (cabinaBloqueadaPorJornada() ? 'CABINA · jornada en curso' : 'CABINA · registro');
+        const jArr = window.cvpTablero ? cvpTablero.jornada(originalData && originalData.fecha || '') : null;
+        badge.textContent = cierreFinalActivo ? 'CABINA · cierre' : (cabinaBloqueadaPorJornada() ? (jArr && jArr.arranco ? 'CABINA · arrancó recepción' : 'CABINA · jornada en curso') : 'CABINA · registro');
+        badge.title = jArr && jArr.arranco ? ('Este día lo arrancó recepción (' + (jArr.por || '') + ')' + (jArr.arranco === 'vacio' ? ' con la hoja vacía' : ' con lo que había cargado Cabina')) : '';
         badge.className = 'badge badge-cabina registro';
         document.body.classList.add('cabina-registro');
       } else {
@@ -11086,7 +11092,90 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     }
   }
 
+  /* —— Emergencia: Cabina no registró el día de hoy → lo arranca recepción —— */
+  /** Fecha de trabajo de hoy: el día cambia a las 04:00 (hora del servidor si hay internet) */
+  function fechaOperativaHoy() {
+    const t = (window.cvpTablero ? cvpTablero.ahora() : Date.now()) - 4 * 3600 * 1000;
+    const d = new Date(t);
+    return formatearFecha(d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear());
+  }
+  function regsDeFecha(fechaStr) {
+    const k = normalizarFechaClave(fechaStr);
+    return (historial || []).filter(function (r) { return normalizarFechaClave(r.fecha) === k; });
+  }
+  /** Turnos de esa fecha que Cabina no registró (los dos si el día no existe) */
+  function turnosSinRegistrar(fechaStr) {
+    const regs = regsDeFecha(fechaStr);
+    return ['TARDE', 'NOCHE'].filter(function (t) {
+      const r = regs.find(function (x) { return String(x.turno || '').trim().toUpperCase() === t; });
+      return !r || !inferirBloqueadoDesdeReg(r);
+    });
+  }
+  function puedeArrancarDiaRecepcion() {
+    try {
+      if (!(typeof haySesionActiva === 'function' && haySesionActiva())) return false;
+      if (typeof puedeOperarCabina === 'function' && puedeOperarCabina()) return false;
+      return turnosSinRegistrar(fechaOperativaHoy()).length > 0;
+    } catch (e) { return false; }
+  }
+  function arrancarDiaRecepcion() {
+    const fecha = fechaOperativaHoy();
+    const faltan = turnosSinRegistrar(fecha);
+    if (!faltan.length) {
+      alert('El día de hoy ya está registrado por Cabina.\nTrabajá en la hoja JEFES.');
+      return;
+    }
+    const regs = regsDeFecha(fecha);
+    const hayAlgo = regs.length > 0;
+    const msg = hayAlgo
+      ? 'Cabina no registró ' + faltan.join(' y ') + ' de hoy (' + fecha + ').\n\n' +
+        '¿Lo registrás vos con lo que dejó cargado Cabina?\n\n' +
+        'Empieza la jornada: Cabina ya no va a poder cambiar la programación de este día.'
+      : 'Cabina no cargó nada para hoy (' + fecha + ').\n\n' +
+        '¿Arrancás el día con la hoja vacía?\n\n' +
+        'Empieza la jornada: Cabina ya no va a poder cambiar la programación de este día.';
+    if (!confirm(msg)) return;
+    if (!confirmarSalirSinGuardar('arrancar el día')) return;
+    const quien = (sesionActual && sesionActual.user) || '';
+    faltan.forEach(function (t, i) {
+      const r = regs.find(function (x) { return String(x.turno || '').trim().toUpperCase() === t; });
+      const orig = r && r.original ? JSON.parse(JSON.stringify(r.original)) : crearEstructuraVacia(fecha, t);
+      orig.fecha = orig.fecha || fecha;
+      orig.turno = t;
+      orig.cierreFinal = false;
+      const edit = JSON.parse(JSON.stringify(orig));
+      historial = (historial || []).filter(function (x) {
+        return !(normalizarFechaClave(x.fecha) === normalizarFechaClave(fecha) && String(x.turno || '').trim().toUpperCase() === t);
+      });
+      historial.unshift({
+        id: Date.now() + i, fecha: orig.fecha, turno: t, original: orig, editable: edit,
+        bloqueado: true, fechaGuardado: new Date().toLocaleString('es-AR')
+      });
+    });
+    try { localStorage.setItem('tablero_historial', JSON.stringify(historial)); } catch (e) {}
+    try { if (window.cvpTablero) cvpTablero.iniciarJornada(fecha, { arranco: hayAlgo ? 'registro' : 'vacio' }); } catch (e) {}
+    try {
+      registrarAuditoria('arranque_recepcion', (hayAlgo ? 'Registró desde recepción lo que dejó Cabina: ' : 'Arrancó el día vacío desde recepción: ') +
+        fecha + ' (' + faltan.join(' + ') + ')');
+    } catch (eA) {}
+    try { if (borradoresPorFecha[normalizarFechaClave(fecha)]) { delete borradoresPorFecha[normalizarFechaClave(fecha)]; localStorage.setItem('tablero_borradores', JSON.stringify(borradoresPorFecha)); } } catch (e) {}
+    // Abrir el día en la hoja JEFES
+    const g = fechasUnicasHistorial().find(function (x) { return normalizarFechaClave(x.fecha) === normalizarFechaClave(fecha); });
+    cambiosSinGuardar = false;
+    modo = 'editable';
+    if (g) cargarFechaDesdeGrupo(g);
+    try { if (window.cvpTablero) cvpTablero.pronto(); } catch (e) {}
+    actualizarBotonesHabilitados();
+    alert('✅ Día arrancado desde recepción.\nFecha: ' + fecha + '\n\nYa podés trabajar en la hoja JEFES. Cabina va a ver que lo arrancaste vos (' + quien + ').');
+  }
+
   async function nuevoRegistro() {
+    // Jefe (sin permiso de cabina): solo el arranque de emergencia del día de hoy
+    if (typeof haySesionActiva === 'function' && haySesionActiva() &&
+        typeof puedeOperarCabina === 'function' && !puedeOperarCabina()) {
+      arrancarDiaRecepcion();
+      return;
+    }
     if (!(await exigirCabina('Autorización para crear un nuevo registro'))) return;
     if (!confirmarSalirSinGuardar('crear un registro nuevo')) return;
     const entradaFecha = prompt('Ingresá la FECHA (ej: 2/9  o  2/9/2026):', '');
@@ -14974,8 +15063,17 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     });
   }
 
-  async function sincronizar() {
-    if (ocupado) { otraVez = true; return; }
+  // Si ya hay una vuelta en curso, se espera a que termine y se hace otra (así no se pierde nada)
+  let enCurso = null;
+  function sincronizar() {
+    if (enCurso) {
+      otraVez = true;
+      return enCurso.then(function () { return enCurso || sincronizar(); });
+    }
+    enCurso = vueltaSync().finally(function () { enCurso = null; });
+    return enCurso;
+  }
+  async function vueltaSync() {
     ocupado = true;
     try {
       const tok = await token();
@@ -14995,7 +15093,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     } finally {
       ocupado = false;
       pintarEstado();
-      if (otraVez) { otraVez = false; pronto(); }
+      if (otraVez) { otraVez = false; setTimeout(sincronizar, 0); }
     }
   }
   function pronto() {
@@ -15075,11 +15173,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     if (!m || !m.jornada) return null;
     try { return JSON.parse(m.jornada); } catch (e) { return null; }
   }
-  function iniciarJornada(fechaStr) {
+  function iniciarJornada(fechaStr, extra) {
     const id = fechaId(fechaStr);
     if (!id || jornadaDe(fechaStr)) return;
     if (!meta[id]) meta[id] = {};
-    meta[id].jornada = JSON.stringify({ t: ahora(), por: usuarioActual() });
+    meta[id].jornada = JSON.stringify(Object.assign({ t: ahora(), por: usuarioActual() }, extra || {}));
     grabar(LS_META, meta);
     pronto();
   }
@@ -15134,7 +15232,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110701', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110702', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
