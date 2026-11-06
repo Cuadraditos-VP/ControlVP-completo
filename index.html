@@ -2944,8 +2944,8 @@
   body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
 
   /* Jefes: título de cada caja oscuro con letra clara, como los pisos */
-  body.modo-editable .seccion-titulo { background: #333333 !important; color: #ffffff !important; }
-  body.modo-editable.turno-noche .seccion-titulo { background: #26313b !important; }
+  body.modo-editable .seccion-titulo { background: #4a4a4a !important; color: #ffffff !important; height: 46px; }
+  body.modo-editable.turno-noche .seccion-titulo { background: #37434f !important; }
   </style>
 </head>
 <body class="modo-original">
@@ -10491,6 +10491,15 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     } catch (e) { console.warn('ancho nombres', e); }
   }
 
+
+  /** Fondo de la franja de un CT: su color claro, un poco más oscuro (mezclado con el color fuerte del turno). */
+  function fondoFranjaCT(col) {
+    try {
+      const a = _parseHexCT(col.bg), b = _parseHexCT(col.fgNombre || col.fg);
+      const t = 0.14;
+      return _toHexCT(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+    } catch (e) { return col.bg; }
+  }
   /** Recuadros: marca las filas vacías (se ven más bajitas). */
   function marcarFilasVacias() {
     try {
@@ -10517,11 +10526,11 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
             f.classList.remove('ct-sigue');
             selT.style.removeProperty('background');
             const colV = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(v) : null;
-            if (colV) { f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg); f.style.setProperty('--ct-fondo', colV.bg); }
+            if (colV) { f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(colV)); }
           } else if (ctActual && !f.classList.contains('fila-vacia')) {
             f.classList.add('ct-bloque', 'ct-sigue');
             const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
-            if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', col.bg); }
+            if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(col)); }
           } else {
             ctActual = '';
             f.classList.remove('ct-bloque', 'ct-sigue');
