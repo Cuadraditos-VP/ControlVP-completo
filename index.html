@@ -5158,10 +5158,28 @@
   function cabinaRegistrada() {
     return !!originalBloqueado;
   }
+  /** Ya empezó la jornada de este día en recepción: Cabina no puede cambiar su programación (el admin sí) */
+  function cabinaBloqueadaPorJornada() {
+    try {
+      if (typeof sesionActual !== 'undefined' && sesionActual && sesionActual.esAdmin) return false;
+      const f = (originalData && originalData.fecha) || (editableData && editableData.fecha) || '';
+      return !!(window.cvpTablero && cvpTablero.jornada(f));
+    } catch (e) { return false; }
+  }
+  function avisoJornadaIniciada() {
+    const j = window.cvpTablero ? cvpTablero.jornada((originalData && originalData.fecha) || '') : null;
+    alert('La jornada de este día ya empezó en recepción' + (j && j.por ? ' (' + j.por + ')' : '') + '.\n' +
+      'Cabina ya no puede cambiar la programación: los cambios del día se hacen desde recepción.');
+  }
   /** ¿La hoja Jefes admite modificaciones? Solo con clave, tras Registrar y sin cierre bloqueado */
   function hojaJefesEditable() {
     if (cierreFinalActivo && !accesoLibre) return false;
     if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) return false;
+    // La hoja Jefes es de recepción: el personal de cabina no la edita (salvo al levantar un cierre)
+    if (typeof esUsuarioPersonalCabina === 'function' && esUsuarioPersonalCabina() && !edicionTrasDesbloqueoCierre) return false;
+    // Jefe: recién desde las 04:00 del día de la hoja
+    if (typeof puedeOperarCabina === 'function' && !puedeOperarCabina() && window.cvpTablero &&
+        !cvpTablero.diaHabilitado((editableData && editableData.fecha) || (originalData && originalData.fecha) || '')) return false;
     // Tras desbloquear un cierre final, se puede editar Jefes aunque siga "registrada"
     if (edicionTrasDesbloqueoCierre && !cierreFinalActivo) return true;
     if (!cabinaRegistrada()) return false;
@@ -10613,7 +10631,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         }
       } catch (eCf) {}
       if (originalBloqueado) {
-        badge.textContent = cierreFinalActivo ? 'CABINA · cierre' : 'CABINA · registro';
+        badge.textContent = cierreFinalActivo ? 'CABINA · cierre' : (cabinaBloqueadaPorJornada() ? 'CABINA · jornada en curso' : 'CABINA · registro');
         badge.className = 'badge badge-cabina registro';
         document.body.classList.add('cabina-registro');
       } else {
@@ -10626,15 +10644,18 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       aplicarEstiloTurno(originalData.turno);
       aplicarVisperaDesdeData(originalData);
       const cabinaEditable = (typeof puedeOperarCabina === 'function' ? puedeOperarCabina() : true) &&
-        (!originalBloqueado || !!edicionTrasDesbloqueoCierre);
+        (!originalBloqueado || !!edicionTrasDesbloqueoCierre) &&
+        (!!edicionTrasDesbloqueoCierre || !cabinaBloqueadaPorJornada());
       render(dataParaRenderCabina(), cabinaEditable);
     } else {
       if (cierreFinalActivo) {
         badge.textContent = 'JEFES (CERRADO)';
         badge.className = 'badge badge-jefes';
       } else if (originalBloqueado) {
-        badge.textContent = 'JEFES · activa';
-        badge.className = 'badge badge-jefes activa';
+        const noHabil = window.cvpTablero && !cvpTablero.diaHabilitado(editableData && editableData.fecha || originalData && originalData.fecha || '');
+        badge.textContent = noHabil ? 'JEFES · desde las 04:00' : 'JEFES · activa';
+        badge.className = 'badge badge-jefes' + (noHabil ? '' : ' activa');
+        badge.title = noHabil ? 'Recepción puede trabajar en esta hoja desde las 04:00 de ese día' : '';
       } else {
         badge.textContent = 'JEFES · sin registrar';
         badge.className = 'badge badge-jefes';
@@ -11034,7 +11055,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     btnCerrar.onclick = () => {
       overlay.remove();
       try {
-        if (modo === 'original') render(dataParaRenderCabina(), puedeOperarCabina() && (!originalBloqueado || !!edicionTrasDesbloqueoCierre));
+        if (modo === 'original') render(dataParaRenderCabina(), puedeOperarCabina() && (!originalBloqueado || !!edicionTrasDesbloqueoCierre) && (!!edicionTrasDesbloqueoCierre || !cabinaBloqueadaPorJornada()));
         else if (editableData) render(editableData, hojaJefesEditable());
       } catch (e) {}
     };
@@ -11120,6 +11141,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     try { enfocarPrimerCTCastitoAlta(true); } catch (eF) {}
   }
   function registrar() {
+    if (cabinaBloqueadaPorJornada()) { avisoJornadaIniciada(); return; }
     if (modo !== 'original') {
       alert('El registro (📋) se hace desde la hoja CABINA.\nPasá a Cabina con las flechas ← →.');
       return;
@@ -11151,6 +11173,8 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     };
     cambiosSinGuardar = true;
     try { registrarAuditoria('registrar_cabina', 'Registró Cabina a Jefes (' + t + ')'); } catch (eA) {}
+    // Registrar guarda solo (así recepción lo ve en la otra PC)
+    try { guardar({ silencioso: true }); } catch (eG) { console.warn('guardar al registrar', eG); }
 
     const tardeOk = !!(cacheFecha['TARDE'] && cacheFecha['TARDE'].bloqueado);
     const nocheOk = !!(cacheFecha['NOCHE'] && cacheFecha['NOCHE'].bloqueado);
@@ -11285,11 +11309,17 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     // Registró NOCHE (solo ese turno pendiente): ya quedó en JEFES · NOCHE
   }
 
-  function guardar() {
+  function guardar(opts) {
+    opts = (opts && typeof opts === 'object' && !opts.target) ? opts : {};
     try {
       // Sin clave no se guarda nada
       if (!(typeof haySesionActiva === 'function' && haySesionActiva())) {
         alert('Para guardar tenés que entrar con tu usuario y clave.');
+        return;
+      }
+      // Cabina, con la jornada ya empezada en recepción: no cambia la programación
+      if (modo === 'original' && !edicionTrasDesbloqueoCierre && cabinaBloqueadaPorJornada() && cambiosSinGuardar) {
+        avisoJornadaIniciada();
         return;
       }
 
@@ -11430,7 +11460,14 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       actualizarIndicadorBorrador();
       const hoja = modo === 'editable' ? 'JEFES' : 'CABINA';
 try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: ' + guardados.join(' + ')); } catch (eA) {}
-      alert('✅ Guardado en el Historial (' + hoja + ').\nFecha: ' + (originalData.fecha || '') + '\nTurnos: ' + guardados.join(' + '));
+      // Primer cambio de un jefe en la hoja Jefes: empieza la jornada (Cabina ya no cambia la programación)
+      try {
+        if (modo === 'editable' && typeof puedeOperarCabina === 'function' && !puedeOperarCabina() && window.cvpTablero) {
+          cvpTablero.iniciarJornada(originalData.fecha || '');
+        }
+      } catch (eJ) {}
+      try { if (window.cvpTablero) cvpTablero.pronto(); } catch (eS) {}
+      if (!opts.silencioso) alert('✅ Guardado en el Historial (' + hoja + ').\nFecha: ' + (originalData.fecha || '') + '\nTurnos: ' + guardados.join(' + '));
       actualizarSliderFecha();
     } catch (err) {
       alert('Error al guardar:\n' + err.message);
@@ -12212,6 +12249,8 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
   }
 
   async function desbloquearOriginal() {
+    const _hayCierre = !!(cierreFinalActivo || (originalData && originalData.cierreFinal) || (editableData && editableData.cierreFinal));
+    if (!_hayCierre && cabinaBloqueadaPorJornada()) { avisoJornadaIniciada(); return; }
     if (!(await exigirCierreFinal('Autorización para desbloquear'))) return;
 
     const habiaCierre = !!(
@@ -13260,6 +13299,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       localStorage.setItem('tablero_editable', JSON.stringify(editableData));
       try { localStorage.setItem('tablero_original', JSON.stringify(originalData)); } catch (e) {}
       try { if (typeof guardarUltimaVista === 'function') guardarUltimaVista(); } catch (eUv) {}
+      try { if (window.cvpTablero) cvpTablero.pronto(); } catch (eS) {}
 
       // Bloquear Cabina y Jefes en ambos turnos (cache)
       ['TARDE', 'NOCHE'].forEach(function (t) {
@@ -13968,6 +14008,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     localStorage.setItem('tablero_historial', JSON.stringify(historial));
     try { if (typeof invalidarOrdenAzarFecha === 'function') invalidarOrdenAzarFecha(g.fecha || fechaClave); } catch (eAz) {}
     try { registrarAuditoria('borrar_historial', 'Borró fecha del historial: ' + (g.fecha || fechaClave)); } catch (eA) {}
+    try { if (window.cvpTablero) cvpTablero.pronto(); } catch (eS) {}
     abrirHistorial();
   }
   function cerrarHistorial(e) {
@@ -14674,6 +14715,418 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 </div>
 
 <script>
+/* ===================================================================
+ * TABLERO COMPARTIDO (Firebase, colección tablero_cvp)
+ * Las PCs de Control VP (conectadas con la invitación 🔗) comparten el historial:
+ * un documento por fecha con Tarde y Noche (hoja Cabina "_o", hoja Jefes "_j",
+ * registrado "_reg"), el inicio de la jornada ("jornada") y si se borró ("borrado").
+ *  - Cada PC guarda en su historial como siempre; acá se compara con lo último que
+ *    hay en Firebase ("base") y se manda solo lo que cambió, campo por campo.
+ *  - Cada 10 segundos se traen los días que cambió la otra PC.
+ *  - Lo que ya estaba en una PC se sube la primera vez sin pisar lo que haya en Firebase.
+ *  - Sin internet se sigue trabajando; lo pendiente se manda cuando vuelve.
+ * =================================================================== */
+(function () {
+  const COL = CAJ_FS_BASE + '/tablero_cvp';
+  const DOC_NAME = 'projects/programacioncajeros-a7420/databases/(default)/documents/tablero_cvp/';
+  const COMMIT_URL = CAJ_FS_BASE + ':commit?key=' + CAJ_FS_KEY;
+  const QUERY_URL = CAJ_FS_BASE + ':runQuery?key=' + CAJ_FS_KEY;
+  const LS_BASE = 'cvp_tab_base_v1';   // fechaId → { campo: valor } igual a lo que hay en Firebase
+  const LS_T = 'cvp_tab_t_v1';         // última hora (del servidor) ya leída
+  const LS_META = 'cvp_tab_meta_v1';   // fechaId → { jornada: '{"t":..,"por":..}' }
+  const LS_PC = 'cvp_tab_pc_v1';       // id de esta PC
+  const TURNOS = ['TARDE', 'NOCHE'];
+  const CAMPOS = ['fecha', 'TARDE_o', 'TARDE_j', 'TARDE_reg', 'NOCHE_o', 'NOCHE_j', 'NOCHE_reg', 'jornada', 'borrado'];
+
+  function leer(k, def) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? def : v; } catch (e) { return def; } }
+  function grabar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  let base = leer(LS_BASE, {});
+  let meta = leer(LS_META, {});
+  let ultimaT = leer(LS_T, '');
+  let pc = leer(LS_PC, '');
+  if (!pc) { pc = 'pc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); grabar(LS_PC, pc); }
+  let offset = 0;                 // hora del servidor - hora de esta PC (ms)
+  let bajadaInicialOk = false;    // no se sube nada hasta haber traído lo que hay en Firebase
+  let ocupado = false, otraVez = false, timerPronto = null;
+  const estado = { conectado: false, ok: null, error: '', pendientes: 0, ultimo: 0 };
+
+  /** Id del documento para una fecha del tablero: AAAA-MM-DD */
+  function fechaId(fechaStr) {
+    const d = (typeof parseFechaHistorial === 'function') ? parseFechaHistorial(fechaStr) : null;
+    if (d) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const s = normalizarFechaClave(fechaStr || '').replace(/[^A-Z0-9]+/g, '_').slice(0, 80);
+    return s ? 'x_' + s : '';
+  }
+  function ahora() { return Date.now() + offset; }
+  function ajustarReloj(rfc) {
+    const t = Date.parse(rfc || '');
+    if (t) offset = t - Date.now();
+  }
+  function usuarioActual() {
+    try { if (typeof cargarSesion === 'function') cargarSesion(); } catch (e) {}
+    return (typeof sesionActual !== 'undefined' && sesionActual && sesionActual.user) ? String(sesionActual.user) : '';
+  }
+
+  /** Valores de una fecha según el historial de esta PC (null si no está) */
+  function valoresLocales(id) {
+    const regs = (historial || []).filter(function (r) { return fechaId(r.fecha) === id; });
+    if (!regs.length) return null;
+    const v = { fecha: String(regs[0].fecha || ''), borrado: false, jornada: (meta[id] && meta[id].jornada) || '' };
+    TURNOS.forEach(function (t) {
+      const r = regs.find(function (x) { return String(x.turno || '').trim().toUpperCase() === t; });
+      v[t + '_o'] = r && r.original ? JSON.stringify(r.original) : '';
+      v[t + '_j'] = r && (r.editable || r.original) ? JSON.stringify(r.editable || r.original) : '';
+      v[t + '_reg'] = r ? (inferirBloqueadoDesdeReg(r) ? '1' : '0') : '';
+    });
+    return v;
+  }
+  /** Pasa al historial de esta PC los valores de una fecha (sin avisar a Firebase) */
+  function aplicarAlHistorial(id, v) {
+    historial = (historial || []).filter(function (r) { return fechaId(r.fecha) !== id; });
+    if (v && !v.borrado) {
+      TURNOS.forEach(function (t) {
+        if (!v[t + '_o']) return;
+        let o = null, j = null;
+        try { o = JSON.parse(v[t + '_o']); } catch (e) {}
+        try { j = v[t + '_j'] ? JSON.parse(v[t + '_j']) : null; } catch (e) {}
+        if (!o) return;
+        historial.unshift({
+          id: Date.now() + (t === 'NOCHE' ? 1 : 0),
+          fecha: v.fecha || o.fecha || '',
+          turno: t,
+          original: o,
+          editable: j || JSON.parse(JSON.stringify(o)),
+          bloqueado: v[t + '_reg'] === '1',
+          fechaGuardado: new Date().toLocaleString('es-AR')
+        });
+      });
+    }
+    if (!meta[id]) meta[id] = {};
+    meta[id].jornada = (v && !v.borrado && v.jornada) || '';
+    grabar(LS_META, meta);
+    try { localStorage.setItem('tablero_historial', JSON.stringify(historial)); } catch (e) {}
+  }
+
+  function cierreEn(v) {
+    let c = false;
+    TURNOS.forEach(function (t) {
+      ['_o', '_j'].forEach(function (s) {
+        try { if (v && v[t + s] && JSON.parse(v[t + s]).cierreFinal) c = true; } catch (e) {}
+      });
+    });
+    return c;
+  }
+  function jornadaMasVieja(a, b) {
+    if (!a) return b || '';
+    if (!b) return a;
+    try { return (JSON.parse(a).t || 0) <= (JSON.parse(b).t || 0) ? a : b; } catch (e) { return a; }
+  }
+
+  /**
+   * Junta lo de Firebase (remoto) con lo de esta PC (local) sobre lo último sincronizado (b).
+   * Devuelve { valores, subir: [campos a mandar], bajo: hubo cambios que vinieron de afuera }.
+   */
+  function juntar(local, remoto, b) {
+    const out = { valores: {}, subir: [], bajo: false };
+    if (!remoto) {                               // en Firebase no está
+      if (local) { out.valores = local; out.subir = CAMPOS.slice(); }
+      return out;
+    }
+    if (!b) {                                    // nunca se sincronizó: manda lo que ya está en Firebase
+      out.valores = Object.assign({}, remoto);
+      out.bajo = !local || CAMPOS.some(function (c) { return local[c] !== remoto[c]; });
+      if (local && local.jornada && !remoto.jornada) { out.valores.jornada = local.jornada; out.subir.push('jornada'); }
+      return out;
+    }
+    const loc = local || Object.assign({}, b, { borrado: true });
+    const cierreRemoto = cierreEn(remoto) && !cierreEn(b);
+    CAMPOS.forEach(function (c) {
+      const cambioLocal = loc[c] !== b[c], cambioRemoto = remoto[c] !== b[c];
+      if (c === 'jornada') {
+        const j = jornadaMasVieja(loc.jornada, remoto.jornada);
+        out.valores.jornada = j;
+        if (j !== remoto.jornada) out.subir.push('jornada');
+        if (j !== loc.jornada) out.bajo = true;
+        return;
+      }
+      if (cambioLocal && (!cambioRemoto || !cierreRemoto)) {
+        out.valores[c] = loc[c];                 // lo de esta PC (si cambiaron los dos, gana el último que guarda)
+        if (loc[c] !== remoto[c]) out.subir.push(c);
+      } else {
+        out.valores[c] = remoto[c];              // lo de afuera (o el cierre de Cabina, que manda)
+        if (remoto[c] !== loc[c]) out.bajo = true;
+      }
+    });
+    return out;
+  }
+
+  function aCampos(v, lista) {
+    const f = {};
+    lista.forEach(function (c) {
+      if (c === 'borrado') f.borrado = { booleanValue: !!v.borrado };
+      else f[c] = { stringValue: String(v[c] == null ? '' : v[c]) };
+    });
+    return f;
+  }
+  function deDoc(doc) {
+    if (!doc || !doc.fields) return null;
+    const f = doc.fields, v = {};
+    CAMPOS.forEach(function (c) {
+      if (c === 'borrado') v.borrado = !!(f.borrado && f.borrado.booleanValue);
+      else v[c] = (f[c] && typeof f[c].stringValue === 'string') ? f[c].stringValue : '';
+    });
+    return v;
+  }
+
+  async function token() {
+    if (typeof cajConectado !== 'function' || !cajConectado()) return null;
+    try { return await cajToken(false); } catch (e) { return null; }
+  }
+
+  /** Lo que llega de afuera para una fecha: al historial, y si es la que está abierta, a la pantalla */
+  function recibir(id, local, res) {
+    const antes = local;
+    aplicarAlHistorial(id, res.valores);
+    if (antes && !cierreEn(antes) && cierreEn(res.valores)) cierreRecibido(res.valores);
+    if (id === fechaAbierta()) refrescarPantalla(id);
+  }
+
+  /** Sube una fecha (o la marca borrada). Usa la última versión de Firebase para no pisar a la otra PC. */
+  async function subirFecha(tok, id) {
+    for (let intento = 0; intento < 4; intento++) {
+      let doc = null;
+      const r = await fetch(COL + '/' + encodeURIComponent(id) + '?key=' + CAJ_FS_KEY, cajAuthOpts(tok, { cache: 'no-store' }));
+      if (r.ok) doc = await r.json();
+      else if (r.status !== 404) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+      const remoto = deDoc(doc);
+      const local = valoresLocales(id);
+      const res = juntar(local, remoto, base[id] || null);
+      if (res.bajo) recibir(id, local, res);
+      if (!res.subir.length) { base[id] = res.valores; grabar(LS_BASE, base); return; }
+      const lista = res.subir.concat(['por', 'pc']);
+      const fields = aCampos(res.valores, res.subir);
+      fields.por = { stringValue: usuarioActual() || '(sin sesión)' };
+      fields.pc = { stringValue: pc };
+      const body = { writes: [{
+        update: { name: DOC_NAME + id, fields: fields },
+        updateMask: { fieldPaths: lista },
+        updateTransforms: [{ fieldPath: 't', setToServerValue: 'REQUEST_TIME' }],
+        currentDocument: doc ? { updateTime: doc.updateTime } : { exists: false }
+      }] };
+      const w = await fetch(COMMIT_URL, cajAuthOpts(tok, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+      if (w.ok) {
+        const d = await w.json();
+        ajustarReloj(d.commitTime);
+        base[id] = res.valores;
+        grabar(LS_BASE, base);
+        return;
+      }
+      // Otra PC guardó justo en el medio (o ya existe): se vuelve a leer y se junta otra vez
+      if (w.status === 400 || w.status === 409 || w.status === 412) continue;
+      const e = new Error('HTTP ' + w.status); e.status = w.status; throw e;
+    }
+    throw new Error('Firebase ocupado');
+  }
+
+  /** Trae los días que cambiaron desde la última vez */
+  async function bajarCambios(tok) {
+    for (let vuelta = 0; vuelta < 20; vuelta++) {
+      const q = { structuredQuery: {
+        from: [{ collectionId: 'tablero_cvp' }],
+        where: { fieldFilter: { field: { fieldPath: 't' }, op: 'GREATER_THAN', value: { timestampValue: ultimaT || '1970-01-01T00:00:00Z' } } },
+        orderBy: [{ field: { fieldPath: 't' }, direction: 'ASCENDING' }],
+        limit: 100
+      } };
+      const r = await fetch(QUERY_URL, cajAuthOpts(tok, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q), cache: 'no-store' }));
+      if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+      const filas = await r.json();
+      let n = 0;
+      (filas || []).forEach(function (fila) {
+        if (fila.readTime) ajustarReloj(fila.readTime);
+        const doc = fila.document;
+        if (!doc) return;
+        n++;
+        const id = decodeURIComponent(String(doc.name || '').split('/').pop());
+        const tDoc = doc.fields && doc.fields.t && doc.fields.t.timestampValue;
+        if (tDoc && (!ultimaT || tDoc > ultimaT)) ultimaT = tDoc;
+        const remoto = deDoc(doc);
+        const local = valoresLocales(id);
+        const res = juntar(local, remoto, base[id] || null);
+        if (res.bajo) recibir(id, local, res);
+        if (!res.subir.length) base[id] = res.valores;   // si hay algo para subir, base queda vieja y se sube después
+      });
+      grabar(LS_T, ultimaT);
+      grabar(LS_BASE, base);
+      if (n < 100) return;
+    }
+  }
+
+  /** Fechas de esta PC que todavía no están iguales en Firebase */
+  function fechasPendientes() {
+    const ids = {};
+    (historial || []).forEach(function (r) { const id = fechaId(r.fecha); if (id) ids[id] = 1; });
+    Object.keys(base).forEach(function (id) { if (!base[id].borrado) ids[id] = 1; });
+    return Object.keys(ids).filter(function (id) {
+      const l = valoresLocales(id), b = base[id];
+      if (!l) return !!(b && !b.borrado);
+      if (!b) return true;
+      return CAMPOS.some(function (c) { return l[c] !== b[c]; });
+    });
+  }
+
+  async function sincronizar() {
+    if (ocupado) { otraVez = true; return; }
+    ocupado = true;
+    try {
+      const tok = await token();
+      estado.conectado = !!tok;
+      if (!tok) { estado.ok = null; estado.pendientes = 0; return; }
+      await bajarCambios(tok);
+      bajadaInicialOk = true;
+      const pend = fechasPendientes();
+      for (let i = 0; i < pend.length; i++) await subirFecha(tok, pend[i]);
+      estado.ok = true; estado.error = ''; estado.ultimo = Date.now();
+      estado.pendientes = 0;
+    } catch (e) {
+      estado.ok = false;
+      estado.error = (e && (e.status === 403 || e.status === 401)) ? 'sin permiso' : 'sin conexión';
+      try { estado.pendientes = bajadaInicialOk ? fechasPendientes().length : 0; } catch (e2) {}
+      console.warn('Tablero compartido:', e);
+    } finally {
+      ocupado = false;
+      pintarEstado();
+      if (otraVez) { otraVez = false; pronto(); }
+    }
+  }
+  function pronto() {
+    clearTimeout(timerPronto);
+    timerPronto = setTimeout(sincronizar, 400);
+  }
+
+  /* —— Pantalla —— */
+  function fechaAbierta() {
+    try { return fechaId((originalData && originalData.fecha) || (editableData && editableData.fecha) || document.getElementById('fecha').value || ''); }
+    catch (e) { return ''; }
+  }
+  function refrescarPantalla(id) {
+    // Con cambios sin guardar no se pisa la pantalla: se avisa
+    if (typeof cambiosSinGuardar !== 'undefined' && cambiosSinGuardar) {
+      avisar('La otra PC guardó cambios en este día. Guardá lo tuyo (💾) o volvé a abrir la fecha para verlos.', '#b26a00');
+      return;
+    }
+    if (document.querySelector('.modal-overlay.show, .resumen-modal-overlay, #timelineOverlay')) { setTimeout(function () { refrescarPantalla(id); }, 3000); return; }
+    try {
+      const g = (typeof fechasUnicasHistorial === 'function') ? fechasUnicasHistorial().find(function (x) { return fechaId(x.fecha) === id; }) : null;
+      if (!g) return;
+      const turno = (document.getElementById('turno-display') && document.getElementById('turno-display').value) || 'TARDE';
+      cargarFechaDesdeGrupo(g);
+      if (String(turno).toUpperCase() !== String((document.getElementById('turno-display') || {}).value || '').toUpperCase()) {
+        try { cargarTurnoDesdeCacheOHistorial(turno); document.getElementById('turno-display').value = turno; mostrarVista(modo); } catch (e) {}
+      }
+    } catch (e) { console.warn('refrescar', e); }
+  }
+  /** Cabina hizo el cierre final en la otra PC: se cierra la sesión del jefe en esta */
+  function cierreRecibido(v) {
+    try {
+      const u = usuarioActual();
+      if (!u || (typeof puedeOperarCabina === 'function' && puedeOperarCabina())) return;
+      guardarSesion(null);
+      try { cambiosSinGuardar = false; } catch (e) {}
+      try { actualizarBotonesHabilitados(); } catch (e) {}
+      try { mostrarVista('editable'); } catch (e) {}
+      if (typeof mostrarRecuadroInfo === 'function') {
+        mostrarRecuadroInfo('Cabina hizo el cierre final del ' + String(v.fecha || '').toLowerCase() + '.\nSe cerró la sesión de ' + u + '.', 'Cierre final');
+      }
+    } catch (e) {}
+  }
+  function avisar(txt, color) {
+    const el = document.getElementById('cvp-tablero-estado');
+    if (!el) return;
+    el.textContent = '⚠ ' + txt;
+    el.style.background = color || '#b71c1c';
+    el.dataset.aviso = String(Date.now());
+  }
+  function pintarEstado() {
+    let el = document.getElementById('cvp-tablero-estado');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'cvp-tablero-estado';
+      el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9000;padding:3px 9px;border-radius:12px;' +
+        'font:600 12px system-ui,sans-serif;color:#fff;opacity:0.92;pointer-events:none;max-width:70vw';
+      document.body.appendChild(el);
+    }
+    if (el.dataset.aviso && Date.now() - Number(el.dataset.aviso) < 15000) return;
+    delete el.dataset.aviso;
+    let txt, color;
+    if (!estado.conectado) { txt = 'Sin compartir: esta PC no está conectada a Cajeros (🔗)'; color = '#757575'; }
+    else if (estado.ok === false) {
+      txt = (estado.error === 'sin permiso' ? 'Sin permiso para compartir' : 'Sin conexión') +
+        (estado.pendientes ? ' · ' + estado.pendientes + ' día(s) por mandar' : '') + ' — se sigue guardando en esta PC';
+      color = '#b71c1c';
+    } else if (estado.ok) { txt = '☁ Compartido'; color = '#2e7d32'; }
+    else { txt = '☁ Conectando…'; color = '#757575'; }
+    el.textContent = txt;
+    el.style.background = color;
+  }
+
+  /* —— Jornada —— */
+  function jornadaDe(fechaStr) {
+    const m = meta[fechaId(fechaStr)];
+    if (!m || !m.jornada) return null;
+    try { return JSON.parse(m.jornada); } catch (e) { return null; }
+  }
+  function iniciarJornada(fechaStr) {
+    const id = fechaId(fechaStr);
+    if (!id || jornadaDe(fechaStr)) return;
+    if (!meta[id]) meta[id] = {};
+    meta[id].jornada = JSON.stringify({ t: ahora(), por: usuarioActual() });
+    grabar(LS_META, meta);
+    pronto();
+  }
+  /** ¿Ya son las 04:00 del día de esa hoja? (hora del servidor si hay internet) */
+  function diaHabilitado(fechaStr) {
+    const d = (typeof parseFechaHistorial === 'function') ? parseFechaHistorial(fechaStr) : null;
+    if (!d) return true;
+    return ahora() >= new Date(d.getFullYear(), d.getMonth(), d.getDate(), 4, 0, 0).getTime();
+  }
+
+  window.cvpTablero = {
+    pronto: pronto,
+    sincronizar: sincronizar,
+    jornada: jornadaDe,
+    iniciarJornada: iniciarJornada,
+    diaHabilitado: diaHabilitado,
+    revisarHorario: revisarHorario,
+    ahora: ahora,
+    estado: estado,
+    _fechaId: fechaId
+  };
+
+  /** A las 04:00 la hoja Jefes del día se habilita sola (sin recargar) */
+  let habilAnt = null;
+  function revisarHorario() {
+    try {
+      const h = diaHabilitado((editableData && editableData.fecha) || (originalData && originalData.fecha) || '');
+      if (habilAnt !== null && h !== habilAnt && !(typeof cambiosSinGuardar !== 'undefined' && cambiosSinGuardar)) mostrarVista(modo);
+      habilAnt = h;
+    } catch (e) {}
+  }
+
+  function arrancar() {
+    pintarEstado();
+    sincronizar();
+    setInterval(revisarHorario, 10000);
+    setInterval(function () { if (!document.hidden) sincronizar(); }, 10000);
+    setInterval(function () { if (document.hidden) sincronizar(); }, 60000);
+    window.addEventListener('online', pronto);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) pronto(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(arrancar, 1500); });
+  else setTimeout(arrancar, 1500);
+})();
+</script>
+
+<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') {
@@ -14681,7 +15134,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110602', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110701', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
