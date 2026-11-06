@@ -2820,6 +2820,21 @@
   .fila.fila-vacia .btn-quitar-fila { height: 18px; }
   .fila.fila-vacia:hover { background: #faf8f4; }
   @media print { .fila.fila-vacia { height: auto; } }
+
+  /* Filas vacías: sin franja de color */
+  .fila.fila-vacia { border-left-color: transparent !important; }
+  /* Columnas de las plantas al ancho justo: nombre más largo (con legajo) + 3 letras.
+     --ancho-columna lo calcula la app (actualizarAnchoNombres). */
+  @media (min-width: 1101px) {
+    .plantas { grid-template-columns: repeat(3, minmax(0, var(--ancho-columna, 1fr))); justify-content: center; gap: 18px; }
+    .fila, .fila:not(.con-check):not(.con-nota):not(:has(.btn-quitar-fila)) { grid-template-columns: 42px minmax(0, 1fr); }
+    .fila:has(.btn-quitar-fila) { grid-template-columns: 42px minmax(0, 1fr) 28px; }
+    .fila.con-check { grid-template-columns: 42px minmax(0, 1fr) 22px 28px; }
+    .fila.con-check.sin-quitar { grid-template-columns: 42px minmax(0, 1fr) 22px; }
+    .fila.con-nota { grid-template-columns: 42px minmax(0, 1fr) 58px 28px; }
+    .fila.con-nota.sin-quitar { grid-template-columns: 42px minmax(0, 1fr) 58px; }
+    .fila.con-nota .nota-novedad { min-width: 0; width: 58px; padding: 3px 2px; letter-spacing: 0; }
+  }
   </style>
 </head>
 <body class="modo-original">
@@ -10308,8 +10323,45 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     });
     actualizarSliderFecha();
     actualizarCuentasSecciones();
+    actualizarAnchoNombres();
   
     setTimeout(aplicarPendingFocusCelda, 0);
+  }
+
+
+  /** Ancho de la columna del nombre: el nombre (con legajo) más ancho de la lista + 3 letras. */
+  function actualizarAnchoNombres() {
+    try {
+      const sel = document.querySelector('#plantas .nombre-select');
+      if (!sel) return;
+      const cs = getComputedStyle(sel);
+      const ctx = (actualizarAnchoNombres._c = actualizarAnchoNombres._c || document.createElement('canvas').getContext('2d'));
+      ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      let max = 0;
+      (nombresPermitidos || []).forEach(function (n) {
+        const w = ctx.measureText(String(n || '')).width;
+        if (w > max) max = w;
+      });
+      document.querySelectorAll('#plantas .nombre-select').forEach(function (s2) {
+        const w = ctx.measureText(String(s2.value || '')).width;
+        if (w > max) max = w;
+      });
+      const relleno = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + 2;
+      const ancho = Math.ceil(max + 3 * ctx.measureText('0').width + relleno);
+      // Ancho de columna: la fila más cargada (turno + nombre + tilde / nota / botón quitar)
+      let columna = 0;
+      document.querySelectorAll('#plantas .fila').forEach(function (f) {
+        // NOVEDADES no cuenta (su nota es más ancha; ahí un nombre muy largo puede cortarse)
+        if (f.classList.contains('con-nota')) return;
+        const pistas = [42, ancho];
+        if (f.classList.contains('con-check')) pistas.push(22);
+        if (f.querySelector('.btn-quitar-fila')) pistas.push(28);
+        const w = pistas.reduce(function (a, b) { return a + b; }, 0) + 6 * (pistas.length - 1) + 14 + 4 + 4;
+        if (w > columna) columna = w;
+      });
+      document.documentElement.style.setProperty('--ancho-nombre', ancho + 'px');
+      if (columna) document.documentElement.style.setProperty('--ancho-columna', columna + 'px');
+    } catch (e) { console.warn('ancho nombres', e); }
   }
 
   /** Recuadros: cantidad de gente cargada en el título y marca de filas vacías. */
