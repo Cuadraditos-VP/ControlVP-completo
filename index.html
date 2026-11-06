@@ -62,7 +62,6 @@
       opacity: 0.45;
       pointer-events: none;
     }
-    /* 🆕 y 💾 habilitados sin sesión / jefes: hoja provisoria */
     body.modo-editable {
       background: var(--bg-jefes-tarde);
       color: var(--text);
@@ -4503,30 +4502,13 @@
     return haySesionActiva();
   }
 
-  /**
-   * ¿Puede editar CT/cajeros en Jefes?
-   * - Personal de cabina con sesión: sí (flujo normal).
-   * - Sin sesión o jefe de piso: sí en hoja provisoria / Jefes, si no hay cierre bloqueado.
-   */
+  /** Jefe de piso: usuario con clave, sin permiso de cabina. Edita la hoja Jefes de días registrados. */
   function esUsuarioJefePiso() {
     try {
       if (typeof cargarSesion === 'function') cargarSesion();
       return !!(sesionActual && sesionActual.user && !sesionActual.esAdmin &&
         !sesionActual.puedeCabina && !sesionActual.puedeCierreFinal);
     } catch (e) { return false; }
-  }
-  function esModoProvisorio() {
-    try {
-      if (typeof puedeOperarCabina === 'function' && puedeOperarCabina()) return false;
-    } catch (e) {}
-    // Sin sesión o jefe (sin permiso cabina)
-    try {
-      if (!(typeof haySesionActiva === 'function' && haySesionActiva())) return true;
-    } catch (e2) { return true; }
-    return esUsuarioJefePiso();
-  }
-  function puedeCrearHojaProvisoria() {
-    return !!esModoProvisorio();
   }
 
   const LS_JEFE_TRABAJO = 'tablero_jefe_trabajo_v1';
@@ -4637,8 +4619,7 @@
     try {
       if (typeof puedeOperarCabina === 'function' && puedeOperarCabina()) return true;
     } catch (e2) {}
-    // Provisorio (sin sesión / jefe): editar Jefes
-    if (esModoProvisorio()) return true;
+    // Jefe con clave: hoja Jefes (sin clave no se edita nada)
     return !!(typeof haySesionActiva === 'function' && haySesionActiva());
   }
 
@@ -5177,13 +5158,9 @@
   function cabinaRegistrada() {
     return !!originalBloqueado;
   }
-  /** ¿La hoja Jefes admite modificaciones? Solo tras Registrar y sin cierre bloqueado */
+  /** ¿La hoja Jefes admite modificaciones? Solo con clave, tras Registrar y sin cierre bloqueado */
   function hojaJefesEditable() {
     if (cierreFinalActivo && !accesoLibre) return false;
-    // Hoja provisoria (sin sesión / jefe): editable en Jefes sin haber registrado Cabina
-    if (typeof esModoProvisorio === 'function' && esModoProvisorio()) {
-      return true;
-    }
     if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) return false;
     // Tras desbloquear un cierre final, se puede editar Jefes aunque siga "registrada"
     if (edicionTrasDesbloqueoCierre && !cierreFinalActivo) return true;
@@ -6912,7 +6889,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     try {
       if (typeof actualizarEstadoBotonGuardar === 'function') actualizarEstadoBotonGuardar();
     } catch (e2) {}
-    // Jefe (o provisorio sin sesión en Jefes) con cambios → marcar fecha para oferta de cierre
+    // Jefe con cambios → marcar fecha para oferta de cierre
     try {
       if (cambiosSinGuardar && typeof marcarJefeTrabajoFecha === 'function') {
         const esCab = (typeof puedeOperarCabina === 'function' && puedeOperarCabina());
@@ -10472,7 +10449,6 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       if (typeof puedeOperarCabina === 'function') esCabina = !!puedeOperarCabina();
       if (typeof sesionActual !== 'undefined' && sesionActual) esAdminActivo = !!sesionActual.esAdmin;
     } catch (e) {}
-    const puedeProv = (typeof puedeCrearHojaProvisoria === 'function' && puedeCrearHojaProvisoria());
     document.querySelectorAll('.btn-solo-cabina').forEach(function (btn) {
       // 🔓: también visible para jefes si hay cierre o cabina registrada
       if (btn.id === 'btnUnlock' || (btn.classList.contains('btn-unlock'))) {
@@ -10484,15 +10460,12 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       if (btn.id === 'btnResumenJornada') {
         return;
       }
-      // 🆕: cabina O hoja provisoria (sin sesión / jefe)
+      // 🆕: solo cabina
       if (btn.classList.contains('btn-new')) {
-        const ok = esCabina || puedeProv;
-        btn.style.display = ok ? '' : 'none';
-        btn.disabled = !ok;
-        btn.classList.toggle('btn-disabled', !ok);
-        btn.title = esCabina
-          ? 'Nuevo registro (Cabina)'
-          : 'Nueva hoja provisoria (solo JEFES)';
+        btn.style.display = esCabina ? '' : 'none';
+        btn.disabled = !esCabina;
+        btn.classList.toggle('btn-disabled', !esCabina);
+        btn.title = 'Nuevo registro (Cabina)';
         return;
       }
       if (btn.id === 'btnRankingTemprano') {
@@ -10522,7 +10495,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         if (pCT) pCT.classList.remove('visible');
       }
     } catch (eCol) {}
-    setBtn('.btn-new', esCabina || (typeof puedeCrearHojaProvisoria === 'function' && puedeCrearHojaProvisoria()));
+    setBtn('.btn-new', esCabina);
     setBtn('.btn-reg', esCabina && !enJefes);
     setBtn('.btn-unlock', (esCabina || (typeof puedeCerrarFecha === 'function' && puedeCerrarFecha())) && (!!originalBloqueado || !!cierreFinalActivo));
     const turnoVistaCierre = (document.getElementById('turno-display')?.value || 'TARDE').trim().toUpperCase();
@@ -10652,7 +10625,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       document.getElementById('turno-display').value = originalData.turno;
       aplicarEstiloTurno(originalData.turno);
       aplicarVisperaDesdeData(originalData);
-      const cabinaEditable = (typeof puedeModificarTablero === 'function' ? puedeModificarTablero() : true) &&
+      const cabinaEditable = (typeof puedeOperarCabina === 'function' ? puedeOperarCabina() : true) &&
         (!originalBloqueado || !!edicionTrasDesbloqueoCierre);
       render(dataParaRenderCabina(), cabinaEditable);
     } else {
@@ -11061,7 +11034,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     btnCerrar.onclick = () => {
       overlay.remove();
       try {
-        if (modo === 'original') render(dataParaRenderCabina(), !originalBloqueado || !!edicionTrasDesbloqueoCierre);
+        if (modo === 'original') render(dataParaRenderCabina(), puedeOperarCabina() && (!originalBloqueado || !!edicionTrasDesbloqueoCierre));
         else if (editableData) render(editableData, hojaJefesEditable());
       } catch (e) {}
     };
@@ -11093,11 +11066,8 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
   }
 
   async function nuevoRegistro() {
-    const provisorio = (typeof puedeCrearHojaProvisoria === 'function' && puedeCrearHojaProvisoria());
-    if (!provisorio) {
-      if (!(await exigirCabina('Autorización para crear un nuevo registro'))) return;
-    }
-    if (!confirmarSalirSinGuardar(provisorio ? 'crear una hoja provisoria' : 'crear un registro nuevo')) return;
+    if (!(await exigirCabina('Autorización para crear un nuevo registro'))) return;
+    if (!confirmarSalirSinGuardar('crear un registro nuevo')) return;
     const entradaFecha = prompt('Ingresá la FECHA (ej: 2/9  o  2/9/2026):', '');
     if (entradaFecha === null) return;
     const fechaFormateada = formatearFecha(entradaFecha);
@@ -11140,46 +11110,10 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     cambiosSinGuardar = true;
     try {
       registrarAuditoria(
-        provisorio ? 'nuevo_provisorio' : 'nuevo_registro',
-        (provisorio ? 'Hoja provisoria JEFES: ' : 'Creó registro vacío: ') + fechaFormateada
+        'nuevo_registro',
+        'Creó registro vacío: ' + fechaFormateada
       );
     } catch (eA) {}
-
-    if (provisorio) {
-      // Solo JEFES (TARDE/NOCHE). Cabina no se muestra.
-      originalBloqueado = true; // no hay flujo Cabina
-      if (!editableData && originalData) {
-        editableData = JSON.parse(JSON.stringify(originalData));
-      }
-      if (cacheFecha['TARDE']) {
-        cacheFecha['TARDE'].bloqueado = true;
-        cacheFecha['TARDE'].editable = JSON.parse(JSON.stringify(editableData));
-        cacheFecha['TARDE'].provisorio = true;
-      }
-      if (cacheFecha['NOCHE']) {
-        cacheFecha['NOCHE'].bloqueado = true;
-        cacheFecha['NOCHE'].provisorio = true;
-      }
-      try { if (typeof marcarJefeTrabajoFecha === 'function') marcarJefeTrabajoFecha(fechaFormateada); } catch (eJ) {}
-      modo = 'editable';
-      document.body.classList.add('modo-editable');
-      document.body.classList.remove('modo-original');
-      if (typeof mostrarVista === 'function') mostrarVista('editable');
-      try {
-        if (typeof guardarBorradorActual === 'function') {
-          cambiosSinGuardar = true;
-          guardarBorradorActual();
-        }
-      } catch (eB) {}
-      alert(
-        '✅ Hoja provisoria creada (solo JEFES).\nFecha: ' + fechaFormateada + '\n\n' +
-        'Podés ensayar o administrar el día acá.\n' +
-        'Usá 💾 para no perder el trabajo al cerrar.\n' +
-        'Cabina no está disponible en modo provisorio.'
-      );
-      try { enfocarPrimerCTCastitoAlta(true); } catch (eF) {}
-      return;
-    }
 
     mostrarVista('original');
     alert('✅ Nuevo registro creado para TARDE y NOCHE.\nFecha: ' + fechaFormateada + '\n\nCompletá Cabina · TARDE (CASTITO Planta Alta).');
@@ -11353,32 +11287,9 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
 
   function guardar() {
     try {
-      // Sin sesión / jefe: guardado provisorio en borrador local
-      if (typeof esModoProvisorio === 'function' && esModoProvisorio()) {
-        if (cierreFinalActivo && !accesoLibre) {
-          alert('No se puede guardar: cierre final activo.');
-          return;
-        }
-        try {
-          if (modo === 'editable') {
-            editableData = capturarDatosActuales();
-            editableData.visperaFeriado = !!visperaFeriado;
-          } else if (!originalBloqueado) {
-            originalData = capturarDatosActuales();
-          }
-        } catch (eCap) {}
-        cambiosSinGuardar = true;
-        try { if (typeof guardarEstadoActualEnCache === 'function') guardarEstadoActualEnCache(); } catch (eC) {}
-        try { if (typeof guardarBorradorActual === 'function') guardarBorradorActual(); } catch (eB) {}
-        try {
-          if (editableData) localStorage.setItem('tablero_editable', JSON.stringify(editableData));
-          if (originalData) localStorage.setItem('tablero_original', JSON.stringify(originalData));
-        } catch (eLS) {}
-        cambiosSinGuardar = false;
-        try { if (typeof actualizarIndicadorBorrador === 'function') actualizarIndicadorBorrador(); } catch (eI) {}
-        try { registrarAuditoria('guardar_provisorio', 'Guardó borrador provisorio'); } catch (eA) {}
-        try { if (typeof marcarJefeTrabajoFecha === 'function') marcarJefeTrabajoFecha(); } catch (eJ) {}
-        alert('✅ Guardado provisorio.\nFecha: ' + ((editableData && editableData.fecha) || (originalData && originalData.fecha) || '') + '\n\nSe conserva en este navegador si cerrás la página.');
+      // Sin clave no se guarda nada
+      if (!(typeof haySesionActiva === 'function' && haySesionActiva())) {
+        alert('Para guardar tenés que entrar con tu usuario y clave.');
         return;
       }
 
@@ -12073,7 +11984,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         (sesionActual.esAdmin ? ' (admin)' : '') +
         '<br><span style="color:#666;font-size:0.8rem">Las operaciones restringidas no pedirán clave mientras la sesión esté abierta.</span>';
     } else {
-      estado.innerHTML = '<b>Sin sesión.</b> <span style="color:#666;font-size:0.8rem">Podés usar el tablero con normalidad. Para sorteo, lista, cierre, etc. iniciá sesión.</span>';
+      estado.innerHTML = '<b>Sin sesión.</b> <span style="color:#666;font-size:0.8rem">Podés mirar la hoja Jefes. Para cargar o cambiar algo, entrá con tu usuario y clave.</span>';
     }
     body.appendChild(estado);
 
@@ -14770,7 +14681,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110601', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110602', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
