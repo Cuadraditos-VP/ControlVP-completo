@@ -2880,7 +2880,11 @@
   body.turno-noche .seccion { border-color: #8fa9bd; }
 
   /* Sin renglones separadores: los bloques de color ya separan los turnos */
-  #plantas .fila, #plantas .fila.cambio-grupo { border-bottom-color: transparent !important; }
+  body.modo-editable #plantas .fila, body.modo-editable #plantas .fila.cambio-grupo { border-bottom-color: transparent !important; }
+  /* En Cabina sí: renglones finitos entre filas (también dentro de los bloques de color) */
+  body.modo-original #plantas .fila, body.modo-original #plantas .fila.cambio-grupo { border-bottom: 1px solid #d6d6d6 !important; }
+  body.modo-original #plantas .fila:last-child { border-bottom-color: transparent !important; }
+  body.modo-original .fila.ct-bloque:not(.ct-fin)::before { bottom: 0; }
 
   /* —— Marco neutro (grises): el color queda solo para los turnos —— */
   :root {
