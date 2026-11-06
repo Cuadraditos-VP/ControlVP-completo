@@ -2526,143 +2526,6 @@
     }
 
   
-/* ===== Vista Programación Septiembre ===== */
-/* Panel colores de Programación: por encima de #vista-prog (9000) */
-#panel-colores-prog {
-  z-index: 9500 !important;
-}
-#vista-prog {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  background: #f7f4ef;
-  overflow: auto;
-  color: #1f1a14;
-}
-#vista-prog.visible { display: block; }
-#vista-prog .barra-top-prog {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: linear-gradient(180deg, #f7f4ef 80%, rgba(247,244,239,0.95));
-  padding: 12px 20px;
-  border-bottom: 1px solid #d9cdb8;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-}
-#vista-prog .barra-top-prog h1 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: #8b2e2e;
-  flex: 1;
-  min-width: 200px;
-}
-#vista-prog .btn-volver-tablero {
-  background: #5c4033;
-  color: #f8f1e3;
-  border: none;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-#vista-prog .btn-volver-tablero:hover { filter: brightness(1.1); }
-
-#vista-prog .prog-buscador {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin: 0 12px 0 0;
-    }
-#vista-prog .prog-buscador label {
-      font-weight: 700;
-      color: #5c4033;
-      font-size: 0.9rem;
-    }
-#vista-prog .prog-buscador input {
-      min-width: 200px;
-      max-width: 320px;
-      padding: 6px 10px;
-      border: 1px solid #c9b99a;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      background: #fff;
-    }
-#vista-prog .prog-buscador input:focus {
-      outline: 2px solid #c45c26;
-      outline-offset: 1px;
-    }
-#vista-prog tr.prog-filtrado-oculto {
-      display: none !important;
-    }
-#vista-prog .barra-acciones {
-  position: sticky;
-  top: 52px;
-  z-index: 9;
-  background: #f7f4ef;
-  padding: 8px 0;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-#vista-prog .barra-acciones .prog-botones {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-#vista-prog .barra-acciones button {
-  background: #8b2e2e;
-  color: #fff;
-  border: none;
-  padding: 7px 10px;
-  border-radius: 6px;
-  font-size: 1.15rem;
-  font-weight: 600;
-  cursor: pointer;
-  width: 2.6rem;
-  min-width: 2.6rem;
-  max-width: 2.6rem;
-  box-sizing: border-box;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 0 0 2.6rem;
-  line-height: 1.2;
-}
-#vista-prog .barra-acciones button:hover { background: #6e2424; }
-#vista-prog .barra-acciones button.activo-vista {
-  background: #1565c0;
-  box-shadow: 0 0 0 2px rgba(21,101,192,0.35);
-}
-#vista-prog .barra-acciones #btn-prog-guardar { background: #1e5a3a; }
-#vista-prog .barra-acciones #btn-prog-guardar:hover { background: #16462d; }
-#vista-prog.modo-original-prog td[data-code] select { pointer-events: none; opacity: 0.95; }
-/* Vista inicial: celda que cambió desde la programación inicial */
-#vista-prog.modo-original-prog td.prog-dif-ini { box-shadow: inset 0 0 0 3px #0f766e; }
-#vista-prog #prog-estado-guardado,
-#vista-prog #prog-badge-vista {
-  flex: 1 1 14rem;
-  min-width: 10rem;
-  font-size: 0.75rem;
-  color: #7a6a55;
-}
-#vista-prog #prog-estado-guardado.ok { color: #1e5a3a; font-weight: 700; }
-
-#vista-prog .prog-inner {
-  padding: 12px 20px 40px;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
 
   :root {
     --bg: #f7f4ef;
@@ -2928,7 +2791,6 @@
           <button class="btn btn-cierre" onclick="cierreFinalFecha()" title="Cierre final de la fecha">🔒</button>
           <button class="btn btn-resumen-jornada" id="btnResumenJornada" onclick="abrirResumenJornada()" title="Resumen de la jornada (hoja Jefes)" style="display:none">📋</button>
           <button class="btn btn-informe-jefes" id="btnInformeJefes" onclick="abrirPanelInformeJefes()" title="Informe de jefes (texto libre)" style="display:none;background:#00695c">📝</button>
-          <button class="btn btn-prog btn-solo-cabina" id="btnProgSept" onclick="abrirProgramacionSept()" title="Programación (desde Cajeros)" style="background:#c45c26;display:none">📅</button>
           <button class="btn btn-full" onclick="imprimirHojaActual()" title="Imprimir hoja actual (Cabina o Jefes)">🖨</button>
           <button class="btn btn-full" onclick="compartirHojaActual()" title="Compartir hoja actual como imagen">📤</button>
           <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa">⛶</button>
@@ -3273,9 +3135,9 @@
    *   - Cambios de los cajeros: lo que cada uno publicó en su fila ("propios_cajeros", último cambio de cada celda)
    *   - Feriados: los publicados en Firebase ("cajeros/<mes>") o, si no hay, los del mes
    *   - Inicial (para HE programadas): la primera versión publicada del mes ("inicial")
-   * Cada mes de Cajeros se arma como una tabla más dentro de #vista-prog.
-   * Las tablas fijas de septiembre/octubre 2026 quedan como copia del PDF (versión inicial).
-   * Lo que se corrige a mano en Control VP (localStorage) siempre pisa a lo que viene de Cajeros.
+   * Control VP no muestra la grilla (se mira en la app Cajeros): usa estos datos para sugerir
+   * nombres, la víspera de feriado y las horas extra. No se corrige nada a mano acá.
+   * Las tablas fijas de septiembre/octubre 2026 (del PDF) quedan guardadas en <template id="prog-tablas-fijas">.
    * =================================================================== */
   const PROG_MES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const CAJ_FS_BASE = 'https://firestore.googleapis.com/v1/projects/programacioncajeros-a7420/databases/(default)/documents';
@@ -3284,6 +3146,7 @@
   const LS_PROG_INICIAL = 'tablero_prog_inicial_';   // + 'AAAA-MM': copia congelada si Cajeros no trae inicial
   const PROG_CAJ = {};        // 'AAAA-MM' → { mes, anio, people, grupos, codigos, oficial, cambios, inicial, feriados, codList }
   const PROG_ESTATICO = {};   // 'AAAA-MM' → { legajo: códigos } de las tablas fijas (sep/oct 2026, del PDF)
+  const PROG_ESTATICO_GENTE = {}; // 'AAAA-MM' → [{ id, name }] de esas tablas
   let progCajerosEstado = { ok: false, cjOk: null, cjError: '', actualizado: 0, cambios: 0, error: '' };
 
   function claveMesProg(mes, anio) { return anio + '-' + String(mes + 1).padStart(2, '0'); }
@@ -3299,7 +3162,7 @@
     const hoy = new Date(), idxHoy = hoy.getFullYear() * 12 + hoy.getMonth();
     const cands = Object.keys(PROG_CAJ).map(infoDeIdTablaProg).filter(function (x) { return x && x.mes === mes; })
       .map(function (x) { return x.anio; });
-    if ((mes === 8 || mes === 9) && document.getElementById(mes === 8 ? 'tabla-programacion-sept' : 'tabla-programacion-oct')) cands.push(2026);
+    if ((mes === 8 || mes === 9) && document.getElementById('prog-tablas-fijas')) cands.push(2026);
     if (cands.length) {
       return cands.sort(function (a, b) { return Math.abs(a * 12 + mes - idxHoy) - Math.abs(b * 12 + mes - idxHoy); })[0];
     }
@@ -3314,33 +3177,22 @@
     const n = PROG_MES_NOMBRES[mes] || '';
     return n.charAt(0).toUpperCase() + n.slice(1) + ' ' + (anio || anioDeMesProg(mes));
   }
-  /** Prefijo localStorage de las correcciones hechas en Control VP para ese mes */
-  function prefijoProgMes(mes, anio) {
-    anio = anio || anioDeMesProg(mes);
-    if (anio === 2026 && mes === 8) return 'progSept2026_';
-    if (anio === 2026 && mes === 9) return 'progOct2026_';
-    return 'prog' + claveMesProg(mes, anio) + '_';
-  }
-  /** id de la tabla que muestra ese mes (o null) */
-  function idTablaProgMes(mes, anio) {
+  /** Turnos del mes con los cambios publicados por los cajeros: { codigos: { legajo: [códigos] }, gente: [{ id, name }] } o null.
+   *  Sale de Cajeros; sep/oct 2026 sin datos de Cajeros, de las tablas fijas del PDF. */
+  function progDatosMes(mes, anio) {
     anio = anio || anioDeMesProg(mes);
     const key = claveMesProg(mes, anio);
-    if (document.getElementById('tabla-programacion-' + key)) return key;
-    if (anio === 2026 && mes === 8 && document.getElementById('tabla-programacion-sept')) return 'sept';
-    if (anio === 2026 && mes === 9 && document.getElementById('tabla-programacion-oct')) return 'oct';
-    return null;
+    const c = PROG_CAJ[key];
+    if (c) return { codigos: c.codigos || {}, gente: c.people || [] };
+    extraerTablasEstaticasProg();
+    return PROG_ESTATICO[key] ? { codigos: PROG_ESTATICO[key], gente: PROG_ESTATICO_GENTE[key] || [] } : null;
   }
-  function hayProgMes(mes, anio) { return !!idTablaProgMes(mes, anio); }
-  /** Tablas de programación presentes, ordenadas: [{ id, mes, anio }] */
-  function tablasProgDisponibles() {
-    return Array.prototype.slice.call(document.querySelectorAll('#vista-prog table[data-prog-mes]'))
-      .map(function (t) { const id = t.getAttribute('data-prog-mes'); const i = infoDeIdTablaProg(id); return i ? { id: id, mes: i.mes, anio: i.anio } : null; })
-      .filter(Boolean)
-      .sort(function (a, b) { return (a.anio * 12 + a.mes) - (b.anio * 12 + b.mes); });
-  }
-  function infoTablaDeElemento(el) {
-    const tab = el && el.closest ? el.closest('table[data-prog-mes]') : null;
-    return (tab && infoDeIdTablaProg(tab.getAttribute('data-prog-mes'))) || { mes: 8, anio: 2026 };
+  function hayProgMes(mes, anio) { return !!progDatosMes(mes, anio); }
+  /** Código de un legajo un día (con los cambios publicados por los cajeros) */
+  function codigoProgDelDia(legajo, dia, mes, anio) {
+    const d = progDatosMes(mes, anio);
+    const arr = d && d.codigos[String(legajo || '').trim()];
+    return arr ? String(arr[parseInt(dia, 10) - 1] || '').trim().toUpperCase() : '';
   }
 
   /** Versión INICIAL (base de las HE programadas): semilla de Cajeros > tabla fija del PDF > primera oficial vista */
@@ -3412,8 +3264,10 @@
 
   /** Copia de las tablas fijas (sep/oct 2026, cargadas del PDF): sirven de versión inicial */
   function extraerTablasEstaticasProg() {
+    const tpl = document.getElementById('prog-tablas-fijas');
+    if (!tpl || !tpl.content) return;
     ['sept', 'oct'].forEach(function (id) {
-      const tab = document.getElementById('tabla-programacion-' + id);
+      const tab = tpl.content.querySelector('#tabla-programacion-' + id);
       const i = infoDeIdTablaProg(id);
       if (!tab || !i) return;
       const key = claveMesProg(i.mes, i.anio);
@@ -3424,90 +3278,19 @@
         if (!out[leg]) out[leg] = [];
         out[leg][d - 1] = String(td.getAttribute('data-code') || '').trim().toUpperCase();
       });
+      const gente = [];
+      tab.querySelectorAll('tr').forEach(function (tr) {
+        const l = tr.querySelector('td.legajo-cell'), n = tr.querySelector('td.nombre-cell');
+        const leg = l ? String(l.textContent || '').trim() : '';
+        if (leg) gente.push({ id: leg, name: n ? String(n.textContent || '').trim() : leg });
+      });
+      PROG_ESTATICO_GENTE[key] = gente;
       PROG_ESTATICO[key] = out;
     });
   }
 
-  function escHtmlProg(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  /** Arma (o rearma) la tabla de un mes de Cajeros con el mismo formato que las tablas fijas */
-  function construirTablaCajeros(key) {
-    const d = PROG_CAJ[key];
-    const scroll = document.querySelector('#vista-prog .tabla-scroll');
-    if (!d || !scroll) return;
-    const dias = diasDelMesProg(d.mes, d.anio);
-    const dow = ['DO', 'LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
-    let head = '<tr class="dia-header"><th class="col-legajo">Legajo</th><th class="col-nombre">Apellido y nombre</th>';
-    for (let i = 1; i <= dias; i++) head += '<th>' + dow[new Date(d.anio, d.mes, i).getDay()] + '<br>' + i + '</th>';
-    head += '<th class="col-he-prog" title="Horas extra programadas del mes">HE</th></tr>';
-    // Grupos como en Cajeros (si no vienen, uno solo)
-    let grupos = Array.isArray(d.grupos) && d.grupos.length ? d.grupos : [{ name: 'Cajeros', count: d.people.length }];
-    let html = '', idx = 0;
-    grupos.forEach(function (g, gi) {
-      const cant = (gi === grupos.length - 1) ? d.people.length - idx : Math.max(0, Number(g.count) || 0);
-      const gente = d.people.slice(idx, idx + cant);
-      idx += cant;
-      if (!gente.length) return;
-      html += '<tr class="grupo-header"><td colspan="' + (dias + 3) + '">' + escHtmlProg(String(g.name || ('Grupo ' + (gi + 1))).toUpperCase()) + '</td></tr>';
-      html += head;
-      gente.forEach(function (p) {
-        const arr = d.codigos[p.id] || [];
-        const ofi = d.oficial[p.id] || [];
-        html += '<tr><td class="legajo-cell">' + escHtmlProg(p.id) + '</td><td class="nombre-cell">' + escHtmlProg(p.name || p.id) + '</td>';
-        for (let i = 1; i <= dias; i++) {
-          const cod = escHtmlProg(arr[i - 1] || '');
-          let extra = '';
-          if (d.cambios[p.id + ':' + (i - 1)]) {
-            extra = ' data-cj="1" title="Cambio del cajero (oficial: ' + escHtmlProg(ofi[i - 1] || '—') + ')"';
-          }
-          html += '<td data-code="' + cod + '" data-legajo="' + escHtmlProg(p.id) + '" data-dia="' + i + '"' + extra + '></td>';
-        }
-        html += '<td class="he-prog-total" data-legajo-he="' + escHtmlProg(p.id) + '" title="Total HE programadas">—</td></tr>';
-      });
-    });
-    const id = 'tabla-programacion-' + key;
-    let tab = document.getElementById(id);
-    if (!tab) {
-      tab = document.createElement('table');
-      tab.id = id;
-      tab.className = 'tabla-prog-mes';
-      tab.setAttribute('data-prog-mes', key);
-      tab.style.display = (window._progMesActivo === key) ? '' : 'none';
-      scroll.appendChild(tab);
-    }
-    tab.innerHTML = '<colgroup><col style="width:54px"><col style="width:200px"><col span="' + dias + '" style="width:' +
-      (91.5 / dias).toFixed(2) + '%"></colgroup><thead></thead><tbody>' + html + '</tbody>';
-    // Octubre 2026 de Cajeros reemplaza a la tabla fija (que ya quedó guardada como inicial)
-    if (key === '2026-10') {
-      const viejo = document.getElementById('tabla-programacion-oct');
-      if (viejo) {
-        if (window._progMesActivo === 'oct') { window._progMesActivo = key; tab.style.display = ''; }
-        viejo.parentNode.removeChild(viejo);
-      }
-    }
-  }
 
-  /** Botones de mes (los últimos 4 con programación) */
-  function renderTabsProg() {
-    const cont = document.querySelector('#vista-prog .prog-mes-tabs');
-    if (!cont) return;
-    const colores = ['#c45c26', '#5c6bc0', '#2e7d32', '#6a1b9a', '#8b2e2e'];
-    cont.innerHTML = '';
-    tablasProgDisponibles().slice(-4).forEach(function (x) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.id = 'btn-prog-mes-' + x.id;
-      b.className = 'btn prog-mes-btn' + (window._progMesActivo === x.id ? ' activo' : '');
-      b.style.cssText = 'background:' + colores[(x.anio * 12 + x.mes) % colores.length] +
-        ';min-width:auto;padding:8px 14px;font-size:0.95rem;opacity:' + (window._progMesActivo === x.id ? '1' : '0.75');
-      b.textContent = nombreMesProg(x.mes, x.anio);
-      b.addEventListener('click', function () { cambiarMesProgramacion(x.id); });
-      cont.appendChild(b);
-    });
-  }
-
-  /** Vuelca los meses de Cajeros en PROG_CAJ y arma sus tablas */
+  /** Vuelca los meses de Cajeros en PROG_CAJ */
   function aplicarProgCajeros(cache) {
     if (!cache || !cache.meses) return;
     extraerTablasEstaticasProg();
@@ -3539,10 +3322,7 @@
         feriados: (m.feriados || []).map(Number).filter(function (d) { return d >= 1 && d <= dias; }),
         codList: (m.codigos || []).map(function (c) { return String(c || '').trim().toUpperCase(); }).filter(Boolean)
       };
-      construirTablaCajeros(key);
     });
-    renderTabsProg();
-    try { if (typeof window._progPrepararTablas === 'function') window._progPrepararTablas(); } catch (e) { console.warn(e); }
   }
 
   async function fetchJsonProg(url, opts) {
@@ -3816,7 +3596,6 @@
       if (!tok || !cajConectado()) {
         progCajerosEstado.error = 'este dispositivo no está conectado a Cajeros: pedí una invitación al administrador (botón 🔗)';
         progCajerosEstado.noConectado = true;
-        pintarEstadoProgCajeros();
         actualizarBotonCajeros();
         return null;
       }
@@ -3857,7 +3636,6 @@
         try { localStorage.removeItem(LS_PROG_CAJEROS); } catch (e) {}
         progCajerosEstado = { ok: false, cjOk: null, cjError: '', actualizado: 0, cambios: 0,
           error: 'Cajeros no deja leer la programación en este dispositivo: pedí una invitación nueva (botón 🔗)', noConectado: true };
-        pintarEstadoProgCajeros();
         actualizarBotonCajeros();
         return null;
       }
@@ -3902,7 +3680,6 @@
     })().catch(function (e) {
       progCajerosEstado.error = 'sin conexión';
       console.warn('Programación Cajeros:', e);
-      pintarEstadoProgCajeros();
     }).finally(function () { progCajerosCargando = null; });
     return progCajerosCargando;
   }
@@ -3915,38 +3692,6 @@
       cjOk: cache ? cache.cjOk : null, cjError: cache ? (cache.cjError || '') : '',
       actualizado: cache ? cache.actualizado : 0, cambios: n, error: ''
     };
-    pintarEstadoProgCajeros();
-  }
-  function pintarEstadoProgCajeros() {
-    let el = document.getElementById('prog-fuente-cajeros');
-    if (!el) {
-      const ref = document.getElementById('prog-estado-guardado');
-      if (!ref || !ref.parentNode) return;
-      el = document.createElement('span');
-      el.id = 'prog-fuente-cajeros';
-      el.className = 'nota-guardado';
-      el.style.fontSize = '0.78rem';
-      ref.parentNode.appendChild(el);
-    }
-    const st = progCajerosEstado;
-    let txt, color = '#2e7d32';
-    if (st.noConectado) {
-      txt = '⚠ ' + st.error.charAt(0).toUpperCase() + st.error.slice(1);
-      color = '#b71c1c';
-    } else if (!st.ok) {
-      txt = '⚠ No se pudo leer Cajeros' + (st.error ? ' (' + st.error + ')' : '') + ' — se usa lo guardado';
-      color = '#b71c1c';
-    } else {
-      const h = st.actualizado ? new Date(st.actualizado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-      txt = 'Fuente: Cajeros (CJ) · ' + st.cambios + ' cambio(s) de cajeros · ' + h;
-      if (st.cjOk === false) {
-        txt += ' · ⚠ cambios de cajeros ' + (st.cjError === 'sin permiso' ? 'sin permiso de lectura' : 'no actualizados');
-        color = '#b26a00';
-      }
-      if (st.error) { txt += ' · ⚠ ' + st.error; color = '#b26a00'; }
-    }
-    el.textContent = txt;
-    el.style.color = color;
   }
 
   // Arranque: primero la copia guardada (instantáneo), después Cajeros en segundo plano
@@ -3955,7 +3700,6 @@
       extraerTablasEstaticasProg();
       const c0 = cargarCacheProgCajeros();
       if (c0) { aplicarProgCajeros(c0); actualizarEstadoProgCajeros(c0); }
-      else renderTabsProg();
     } catch (e) { console.warn('prog cajeros', e); }
     setTimeout(function () {
       actualizarBotonCajeros();
@@ -3989,36 +3733,11 @@
     if (anio0 == null) anio0 = anioDeMesProg(mes0);
     const f = new Date(anio0, mes0, parseInt(dia, 10));
     const mesJs = f.getMonth(), anio = f.getFullYear(), d = String(f.getDate());
-    const pref = prefijoProgMes(mesJs, anio);
-    const tab = tablaProgPorMesJs(mesJs, anio);
-    if (!tab) return map;
-    // 1) Celdas de la grilla de programación (corrección guardada / select / base)
-    tab.querySelectorAll('td[data-code][data-dia="' + d + '"]').forEach(function (td) {
-      const leg = td.getAttribute('data-legajo');
-      if (!leg) return;
-      const guardado = localStorage.getItem(pref + leg + '_' + d);
-      let codigo = '';
-      if (guardado !== null) {
-        codigo = String(guardado).trim().toUpperCase();
-      } else {
-        const sel = td.querySelector('select');
-        if (sel && sel.value) codigo = String(sel.value).trim().toUpperCase();
-        else codigo = String(td.getAttribute('data-code') || '').trim().toUpperCase();
-      }
-      map[leg] = codigo;
+    const datos = progDatosMes(mesJs, anio);
+    if (!datos) return map;
+    Object.keys(datos.codigos).forEach(function (leg) {
+      map[leg] = String((datos.codigos[leg] || [])[parseInt(d, 10) - 1] || '').trim().toUpperCase();
     });
-    // 2) Correcciones sueltas en localStorage de ese mes
-    try {
-      const suf = '_' + d;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k || k.indexOf(pref) !== 0 || !k.endsWith(suf)) continue;
-        const mid = k.slice(pref.length, k.length - suf.length);
-        if (!/^\d+$/.test(mid) || map[mid] !== undefined) continue;
-        const val = localStorage.getItem(k);
-        if (val != null) map[mid] = String(val).trim().toUpperCase();
-      }
-    } catch (e) {}
     return map;
   }
 
@@ -4378,54 +4097,24 @@
 
   /** Devuelve los parámetros de la grilla según el turno actual */
   let visperaFeriado = false;
-  const LS_FERIADOS_PROG = 'progSept2026_feriados';
-  const LS_FERIADOS_PROG_OCT = 'progOct2026_feriados';
-
-  function _mesProgActivoJs() {
-    const i = infoDeIdTablaProg(window._progMesActivo || 'sept');
-    return i ? i.mes : 8;
-  }
   function _mesFeriadoValido(mesJs) {
     const m = parseInt(mesJs, 10);
     if (m >= 0 && m <= 11) return m;
-    return _mesProgActivoJs();
-  }
-  /** Clave de feriados marcados a mano en Control VP (sep/oct 2026 conservan las de siempre) */
-  function _claveFeriados(mesJs, anio) {
-    const m = _mesFeriadoValido(mesJs);
-    anio = anio || anioDeMesProg(m);
-    if (anio === 2026 && m === 8) return LS_FERIADOS_PROG;
-    if (anio === 2026 && m === 9) return LS_FERIADOS_PROG_OCT;
-    return 'progFeriados_' + claveMesProg(m, anio);
+    return new Date().getMonth();
   }
   function _diasDelMesProg(mesJs, anio) {
     const m = _mesFeriadoValido(mesJs);
     return diasDelMesProg(m, anio || anioDeMesProg(m));
   }
 
-  /** Feriados del mes: los marcados en Control VP; si nunca se marcaron, los de Cajeros */
+  /** Feriados del mes: los publicados en Cajeros */
   function cargarFeriadosProg(mesJs, anio) {
     const m = _mesFeriadoValido(mesJs);
     anio = anio || anioDeMesProg(m);
     const max = _diasDelMesProg(m, anio);
-    let a = null;
-    try { a = JSON.parse(localStorage.getItem(_claveFeriados(m, anio)) || 'null'); } catch (e) { a = null; }
-    if (!Array.isArray(a)) {
-      const c = PROG_CAJ[claveMesProg(m, anio)];
-      a = c ? c.feriados : [];
-    }
-    return a.map(function (n) { return parseInt(n, 10); })
+    const c = PROG_CAJ[claveMesProg(m, anio)];
+    return ((c && c.feriados) || []).map(function (n) { return parseInt(n, 10); })
       .filter(function (d) { return d >= 1 && d <= max; });
-  }
-  function guardarFeriadosProg(dias, mesJs, anio) {
-    const m = _mesFeriadoValido(mesJs);
-    anio = anio || anioDeMesProg(m);
-    const max = _diasDelMesProg(m, anio);
-    try {
-      const uniq = Array.from(new Set((dias || []).map(function (n) { return parseInt(n, 10); })
-        .filter(function (d) { return d >= 1 && d <= max; }))).sort(function (a, b) { return a - b; });
-      localStorage.setItem(_claveFeriados(m, anio), JSON.stringify(uniq));
-    } catch (e) {}
   }
   function esFeriadoProg(dia, mesJs, anio) {
     return cargarFeriadosProg(mesJs, anio).indexOf(parseInt(dia, 10)) >= 0;
@@ -4438,22 +4127,6 @@
     if (!d || d < 1 || d > _diasDelMesProg(m, anio)) return false;
     const sig = new Date(anio, m, d + 1);
     return esFeriadoProg(sig.getDate(), sig.getMonth(), sig.getFullYear());
-  }
-  function toggleFeriadoProg(dia, mesJs, anio) {
-    if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) {
-      alert('Sin sesión no se pueden marcar feriados.');
-      return;
-    }
-    const m = _mesFeriadoValido(mesJs);
-    anio = anio || anioDeMesProg(m);
-    const d = parseInt(dia, 10);
-    if (!d || d < 1 || d > _diasDelMesProg(m, anio)) return;
-    const arr = cargarFeriadosProg(m, anio);
-    const i = arr.indexOf(d);
-    if (i >= 0) arr.splice(i, 1); else arr.push(d);
-    guardarFeriadosProg(arr, m, anio);
-    try { if (typeof window.pintarHeadersFeriadosProg === 'function') window.pintarHeadersFeriadosProg(); } catch (e) {}
-    try { if (typeof sincronizarVisperaDesdeProg === 'function') sincronizarVisperaDesdeProg(); } catch (e) {}
   }
   function sincronizarVisperaDesdeProg() {
     try {
@@ -4498,166 +4171,6 @@
    *  - 'finde'   → viernes, sábado o víspera de feriado
    */
 
-  /* —— Colores SOLO de la hoja Programación (no afecta el tablero) —— */
-  const LS_PROG_COLORES = 'progSept2026_colores_codigos_v1';
-  const PROG_COLORES_DEFAULT = {
-    'MD': { bg: '#05ff76', fg: '#000000' },
-    'MS': { bg: '#ffbdbd', fg: '#000000' },
-    'T3': { bg: '#ffd85b', fg: '#000000' },
-    'T':  { bg: '#ffffff', fg: '#1f3fbf' },
-    'TE': { bg: '#ccc0da', fg: '#000000' },
-    'N':  { bg: '#254061', fg: '#ffffff' },
-    'E':  { bg: '#007a37', fg: '#ffffff' },
-    'E1': { bg: '#26a69a', fg: '#ffffff' },
-    'X':  { bg: '#705690', fg: '#ffffff' },
-    'IN': { bg: '#fac090', fg: '#000000' },
-    'F':  { bg: '#fc6c6c', fg: '#000000' },
-    'LAO':{ bg: '#c5be97', fg: '#000000' },
-    'FC': { bg: '#ffe0b2', fg: '#000000' },
-    'DV': { bg: '#37474f', fg: '#ffffff' },
-    'NP': { bg: '#cfd8dc', fg: '#000000' },
-    'TP': { bg: '#b2dfdb', fg: '#000000' },
-    '14F':{ bg: '#e57373', fg: '#000000' },
-    'F14':{ bg: '#e57373', fg: '#000000' },
-    '?':  { bg: '#ffffff', fg: '#b71c1c' }
-  };
-  const PROG_PALETA = [
-    '#05ff76','#ffbdbd','#ffd85b','#ffffff','#ccc0da','#254061','#007a37','#26a69a',
-    '#705690','#fac090','#fc6c6c','#c5be97','#ffe0b2','#37474f','#cfd8dc','#b2dfdb',
-    '#e57373','#e3f2fd','#f3e5f5','#fff3e0','#000000','#1f3fbf'
-  ];
-
-  function cargarColoresProg() {
-    try {
-      const o = JSON.parse(localStorage.getItem(LS_PROG_COLORES) || '{}');
-      return (o && typeof o === 'object') ? o : {};
-    } catch (e) { return {}; }
-  }
-  function guardarColoresProg(map) {
-    try { localStorage.setItem(LS_PROG_COLORES, JSON.stringify(map || {})); } catch (e) {}
-  }
-  function colorProgEfectivo(cod) {
-    const c = String(cod || '').trim().toUpperCase();
-    const def = PROG_COLORES_DEFAULT[c] || { bg: '#fafafa', fg: '#000000' };
-    return Object.assign({}, def, cargarColoresProg()[c] || {});
-  }
-  function claseCssProg(cod) {
-    const c = String(cod || '').trim().toUpperCase();
-    if (c === '14F' || c === 'F14') return 'f14';
-    if (c === '?') return 'duda';
-    return c.toLowerCase();
-  }
-  /** Solo afecta #vista-prog — no el tablero principal */
-  function aplicarColoresProgPersonalizados() {
-    let style = document.getElementById('prog-colores-custom');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'prog-colores-custom';
-      document.head.appendChild(style);
-    }
-    let css = '';
-    Object.keys(PROG_COLORES_DEFAULT).forEach(function (cod) {
-      const col = colorProgEfectivo(cod);
-      const cls = claseCssProg(cod);
-      css += '#vista-prog td.' + cls + ',#vista-prog .' + cls + '{background:' + col.bg + ' !important;color:' + col.fg + ' !important;}';
-      css += '#vista-prog td.' + cls + ' select,#vista-prog .' + cls + ' select{color:' + col.fg + ' !important;}';
-    });
-    style.textContent = css;
-  }
-  function setColorProg(cod, campo, valor) {
-    const c = String(cod || '').trim().toUpperCase();
-    if (!c || !valor) return;
-    const map = cargarColoresProg();
-    const base = colorProgEfectivo(c);
-    if (!map[c]) map[c] = { bg: base.bg, fg: base.fg };
-    map[c][campo] = valor;
-    guardarColoresProg(map);
-    aplicarColoresProgPersonalizados();
-    _previewColorProg(c);
-  }
-  function presetColorProg(cod, bg) {
-    const c = String(cod || '').trim().toUpperCase();
-    const p = String(bg || '').replace('#', '');
-    let fg = '#000000';
-    try {
-      const r = parseInt(p.slice(0, 2), 16), g = parseInt(p.slice(2, 4), 16), b = parseInt(p.slice(4, 6), 16);
-      if ((r * 299 + g * 587 + b * 114) / 1000 < 140) fg = '#ffffff';
-    } catch (e) {}
-    const map = cargarColoresProg();
-    const prev = map[c] || colorProgEfectivo(c);
-    map[c] = { bg: bg, fg: prev.fg || fg };
-    guardarColoresProg(map);
-    aplicarColoresProgPersonalizados();
-    _previewColorProg(c);
-  }
-  function _previewColorProg(cod) {
-    const body = document.getElementById('panel-colores-prog-body');
-    if (!body) return;
-    const col = colorProgEfectivo(cod);
-    const badge = body.querySelector('[data-prog-badge="' + cod + '"]');
-    if (badge) {
-      badge.style.background = col.bg;
-      badge.style.color = col.fg;
-    }
-  }
-  function resetColorProg(cod) {
-    const map = cargarColoresProg();
-    delete map[String(cod || '').trim().toUpperCase()];
-    guardarColoresProg(map);
-    aplicarColoresProgPersonalizados();
-    abrirPanelColoresProg();
-  }
-  function resetTodosColoresProg() {
-    if (!confirm('¿Restablecer colores de Programación a los valores por defecto?')) return;
-    guardarColoresProg({});
-    aplicarColoresProgPersonalizados();
-    abrirPanelColoresProg();
-  }
-  function cerrarPanelColoresProg() {
-    const p = document.getElementById('panel-colores-prog');
-    if (p) p.classList.remove('visible');
-  }
-  function abrirPanelColoresProg() {
-    try { if (typeof cargarSesion === 'function') cargarSesion(); } catch (e) {}
-    if (!(typeof sesionActual !== 'undefined' && sesionActual && sesionActual.esAdmin)) {
-      alert('Solo el administrador puede ver y editar la paleta de colores de Programación.');
-      return;
-    }
-    const panel = document.getElementById('panel-colores-prog');
-    const body = document.getElementById('panel-colores-prog-body');
-    if (!panel || !body) return;
-    let html = '<p style="font-size:0.78rem;color:#666;margin:0 0 10px">Solo la hoja <b>Programación</b>. No cambia los colores del tablero.</p>';
-    html += '<div style="display:flex;flex-direction:column;gap:8px;max-width:460px">';
-    Object.keys(PROG_COLORES_DEFAULT).forEach(function (cod) {
-      if (cod === 'F14') return; // alias de 14F
-      const col = colorProgEfectivo(cod);
-      html += '<div style="padding:8px;border:1px solid #e0d6c4;border-radius:8px;background:#fffdf8">';
-      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
-      html += '<span data-prog-badge="' + cod + '" style="font-weight:800;min-width:40px;text-align:center;padding:4px 8px;border-radius:6px;background:' +
-        col.bg + ';color:' + col.fg + ';border:1px solid #999">' + cod + '</span>';
-      html += '<label style="font-size:0.72rem">Fondo <input type="color" value="' + col.bg + '" oninput="setColorProg(\'' + cod + '\',\'bg\',this.value)"></label>';
-      html += '<label style="font-size:0.72rem">Texto <input type="color" value="' + col.fg + '" oninput="setColorProg(\'' + cod + '\',\'fg\',this.value)"></label>';
-      html += '<button type="button" class="btn" style="min-width:auto;min-height:26px;padding:2px 8px;font-size:0.72rem;background:#757575" onclick="resetColorProg(\'' + cod + '\')">Reset</button>';
-      html += '</div><div style="display:flex;flex-wrap:wrap;gap:3px">';
-      PROG_PALETA.forEach(function (hex) {
-        html += '<button type="button" title="' + hex + '" onclick="presetColorProg(\'' + cod + '\',\'' + hex + '\')" style="width:16px;height:16px;padding:0;min-width:0;border-radius:3px;border:1px solid #aaa;background:' + hex + ';cursor:pointer"></button>';
-      });
-      html += '</div></div>';
-    });
-    html += '</div>';
-    html += '<div style="margin-top:12px"><button type="button" class="btn" style="background:#8b2e2e;min-width:auto;padding:6px 12px;font-size:0.85rem" onclick="resetTodosColoresProg()">Restablecer todos</button></div>';
-    body.innerHTML = html;
-    panel.classList.add('visible');
-  }
-  // Exponer para onclicks del panel de colores (inline handlers)
-  try {
-    window.abrirPanelColoresProg = abrirPanelColoresProg;
-    window.cerrarPanelColoresProg = cerrarPanelColoresProg;
-    window.setColorProg = setColorProg;
-    window.presetColorProg = presetColorProg;
-    window.resetColorProg = resetColorProg;
-    window.resetTodosColoresProg = resetTodosColoresProg;
-  } catch (e) {}
 
   function obtenerTipoHorarioDia() {
     try {
@@ -4802,9 +4315,8 @@
   }
 
   function toggleVisperaFeriado() {
-    alert('La víspera de feriado se controla desde Programación Cajeros.\n' +
-      'Abrí 📅 Programación y marcá el feriado con clic en el número del día.\n' +
-      'El día anterior queda como víspera automáticamente.');
+    alert('La víspera de feriado sale de los feriados de la app Cajeros.\n' +
+      'El día anterior a un feriado queda como víspera automáticamente.');
   }
 
   function aplicarVisperaDesdeData(data) {
@@ -5695,7 +5207,6 @@
 
   function abrirGrillaHorarios(nombrePlanta) {
     try { if (typeof aplicarColoresCTPersonalizados === 'function') aplicarColoresCTPersonalizados(); } catch (e) {}
-    try { if (typeof aplicarColoresProgPersonalizados === 'function') aplicarColoresProgPersonalizados(); } catch (e) {}
     try { if (typeof sincronizarVisperaDesdeProg === 'function') sincronizarVisperaDesdeProg(); } catch (e) {}
     // Solo USUARIOS jefes (no personal de cabina) y en hoja Jefes
     if (!puedeUsuarioVerHorarios()) {
@@ -6095,79 +5606,34 @@
     return t.replace(/\s*\(\d{4,}\)\s*$/, '').trim() || t;
   }
 
-  /** legajo → nombre desde la grilla de Programación del mes */
+  /** legajo → nombre de todos los meses cargados (Cajeros y tablas fijas) */
   function mapaLegajosProgramacionMes() {
     const out = {};
     try {
-      const root = document.getElementById('vista-prog') || document;
-      root.querySelectorAll('tr').forEach(function (tr) {
-        const legTd = tr.querySelector('td.legajo-cell');
-        const nomTd = tr.querySelector('td.nombre-cell');
-        if (!legTd || !nomTd) return;
-        const leg = String(legTd.textContent || '').trim();
-        const nom = String(nomTd.textContent || '').trim();
-        if (leg && nom) out[leg] = nom;
+      extraerTablasEstaticasProg();
+      const listas = Object.keys(PROG_ESTATICO_GENTE).map(function (k) { return PROG_ESTATICO_GENTE[k]; })
+        .concat(Object.keys(PROG_CAJ).sort().map(function (k) { return PROG_CAJ[k].people || []; }));
+      listas.forEach(function (gente) {
+        gente.forEach(function (p) {
+          const leg = String(p.id || '').trim();
+          if (leg) out[leg] = String(p.name || '').trim() || out[leg] || leg;
+        });
       });
     } catch (e) {}
     return out;
   }
 
-  /**
-   * Código ORIGINAL del mes (Programación Sept.) para legajo + día.
-   * Siempre usa data-code de la grilla (programación base), NO los cambios actuales
-   * en localStorage ni el valor del select. Sirve para HE programadas.
-   */
-  function codigoProgramacionMes(legajo, dia, mesJsOpt, anioOpt) {
-    const leg = String(legajo || '').trim();
-    const d = String(dia);
-    if (!leg || !d) return '';
-    let mesJs = (typeof mesJsOpt === 'number') ? mesJsOpt : 8;
-    if (typeof mesJsOpt !== 'number') {
+  /** Código del mes para legajo + día, con los cambios publicados por los cajeros (para "HE actual") */
+  function codigoProgramacionMesActual(legajo, dia, mesJsOpt, anioOpt) {
+    let mesJs = (typeof mesJsOpt === 'number') ? mesJsOpt : null;
+    if (mesJs == null) {
       try {
         const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
         if (info && typeof info.mes === 'number') mesJs = info.mes;
-      } catch (e0) {}
+      } catch (e) {}
     }
-    try {
-      const tab = tablaProgPorMesJs(mesJs, anioOpt);
-      const td = tab ? tab.querySelector('td[data-code][data-legajo="' + leg + '"][data-dia="' + d + '"]') : null;
-      if (td) {
-        return String(td.getAttribute('data-code') || '').trim().toUpperCase();
-      }
-    } catch (e2) {}
-    return '';
-  }
-
-  /**
-   * Código ACTUAL (con ediciones) del mes — localStorage / select / data-code.
-   * No usar para HE programadas.
-   */
-    function codigoProgramacionMesActual(legajo, dia, mesJsOpt, anioOpt) {
-    const leg = String(legajo || '').trim();
-    const d = String(dia);
-    if (!leg || !d) return '';
-    let mesJs = (typeof mesJsOpt === 'number') ? mesJsOpt : 8;
-    if (typeof mesJsOpt !== 'number') {
-      try {
-        const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-        if (info && typeof info.mes === 'number') mesJs = info.mes;
-      } catch (eM) {}
-    }
-    const key = prefijoProgPorMesJs(mesJs, anioOpt) + leg + '_' + d;
-    try {
-      const guardado = localStorage.getItem(key);
-      if (guardado !== null) return String(guardado).trim().toUpperCase();
-    } catch (e) {}
-    return codigoProgramacionMes(legajo, dia, mesJs, anioOpt);
-  }
-
-  function prefijoProgPorMesJs(mesJs, anio) {
-    // mesJs: 0=ene ... 8=sept, 9=oct (sep/oct 2026 conservan sus claves de siempre)
-    return prefijoProgMes(mesJs, anio);
-  }
-  function tablaProgPorMesJs(mesJs, anio) {
-    const id = idTablaProgMes(mesJs, anio);
-    return id ? document.getElementById('tabla-programacion-' + id) : null;
+    if (mesJs == null) mesJs = new Date().getMonth();
+    return codigoProgDelDia(legajo, dia, mesJs, anioOpt);
   }
 
   function fechaProgSept2026(dia) {
@@ -6295,39 +5761,9 @@
       return mapa[key];
     }
 
-    // —— 1) PROGRAMADAS: grilla del mes ——
+    // —— 1) PROGRAMADAS: turnos de Cajeros ——
     const legNombres = mapaLegajosProgramacionMes();
     const legajos = Object.keys(legNombres);
-    // Si la grilla no está en DOM, recolectar legajos desde localStorage
-    if (!Object.keys(legNombres).length) {
-      try {
-        tablasProgDisponibles().map(function (x) { return prefijoProgMes(x.mes, x.anio); }).forEach(function (pref) {
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (!k || k.indexOf(pref) !== 0 || k.indexOf('SNAPSHOT') >= 0) continue;
-            const rest = k.slice(pref.length);
-            const parts = rest.split('_');
-            if (parts.length < 2) continue;
-            const leg = parts[0];
-            if (leg && !legNombres[leg]) legNombres[leg] = leg;
-          }
-        });
-      } catch (e) {}
-    }
-    // Recolectar legajos también de octubre (localStorage)
-    try {
-      tablasProgDisponibles().map(function (x) { return prefijoProgMes(x.mes, x.anio); }).forEach(function (pref) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (!k || k.indexOf(pref) !== 0 || k.indexOf('SNAPSHOT') >= 0) continue;
-          const rest = k.slice(pref.length);
-          const parts = rest.split('_');
-          if (parts.length < 2) continue;
-          const leg = parts[0];
-          if (leg && !legNombres[leg]) legNombres[leg] = leg;
-        }
-      });
-    } catch (eLS) {}
 
     Object.keys(legNombres).forEach(function (leg) {
       const nom = legNombres[leg] || leg;
@@ -8794,8 +8230,6 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     // ← →  alterna Cabina / Jefes
     // ↑ ↓  alterna TARDE / NOCHE
     if (!enInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const vistaProg = document.getElementById('vista-prog');
-      if (vistaProg && vistaProg.classList.contains('visible')) return;
       // Si hay un panel abierto encima, no cambiar de hoja
       if (document.querySelector('.resumen-modal-overlay') || document.getElementById('timelineOverlay')) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -11133,7 +10567,6 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     setBtn('#btnHorasExtra', esCabina);
     const btnHE = document.getElementById('btnHorasExtra');
     if (btnHE) btnHE.style.display = esCabina ? '' : 'none';
-    setBtn('#btnProgSept', esCabina);
     setBtn('.btn-toggle', true);
     setBtn('.btn-turno', true);
     setBtn('.btn-full', true);
@@ -15031,597 +14464,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     }, 200);
   });
 
-  // —— Programación Septiembre integrada ——
-  let progInicializado = false;
-  function abrirProgramacionSept() {
-    const v = document.getElementById('vista-prog');
-    if (!v) return;
-    v.classList.add('visible');
-    v.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    if (!progInicializado) {
-      try { inicializarProgramacionSept(); } catch (e) { console.warn('prog init', e); }
-      progInicializado = true;
-    }
-    try { cambiarMesProgramacion(window._progMesActivo); } catch (e) {}
-    try { actualizarProgDesdeCajeros(); } catch (e) {}
-  }
-
-  /** Mes por defecto: el de la fecha del tablero, o el actual, o el último con programación */
-  function mesProgPorDefecto() {
-    const info = (typeof infoFechaTablero === 'function') ? infoFechaTablero() : null;
-    if (info && idTablaProgMes(info.mes, info.anio)) return idTablaProgMes(info.mes, info.anio);
-    const hoy = new Date();
-    if (idTablaProgMes(hoy.getMonth(), hoy.getFullYear())) return idTablaProgMes(hoy.getMonth(), hoy.getFullYear());
-    const t = tablasProgDisponibles();
-    return t.length ? t[t.length - 1].id : 'sept';
-  }
-  /** Muestra la tabla del mes ('sept' | 'oct' | 'AAAA-MM') */
-  function cambiarMesProgramacion(mes) {
-    if (!mes || !document.getElementById('tabla-programacion-' + mes)) {
-      // id viejo 'oct' reemplazado por la tabla de Cajeros
-      const i = infoDeIdTablaProg(mes);
-      mes = (i && idTablaProgMes(i.mes, i.anio)) || mesProgPorDefecto();
-    }
-    window._progMesActivo = mes;
-    const info = infoDeIdTablaProg(mes) || { mes: 8, anio: 2026 };
-    const nombre = nombreMesProg(info.mes, info.anio);
-    document.querySelectorAll('#vista-prog table[data-prog-mes]').forEach(function (t) {
-      t.style.display = (t.getAttribute('data-prog-mes') === mes) ? '' : 'none';
-    });
-    const tit = document.getElementById('prog-titulo-mes');
-    if (tit) tit.textContent = 'CAJEROS VENTA PAGO ' + nombre.toUpperCase();
-    const tit2 = document.querySelector('#vista-prog .barra-top-prog h1');
-    if (tit2) tit2.textContent = '📅 Programación — Cajeros Venta Pago · ' + nombre;
-    document.querySelectorAll('#vista-prog .prog-mes-btn').forEach(function (b) {
-      const act = b.id === 'btn-prog-mes-' + mes;
-      b.style.opacity = act ? '1' : '0.75';
-      b.classList.toggle('activo', act);
-    });
-    try {
-      const el = document.getElementById('prog-estado-guardado');
-      if (el) el.textContent = PROG_MES_NOMBRES[info.mes].replace(/^./, function (c) { return c.toUpperCase(); }) +
-        ' — los cambios se pueden guardar en este navegador.';
-    } catch (e) {}
-    try { pintarEstadoProgCajeros(); } catch (e) {}
-    try { if (typeof window._progRefrescarVistaInicial === 'function') window._progRefrescarVistaInicial(); } catch (e) {}
-  }
-
-  function cerrarProgramacionSept() {
-    const v = document.getElementById('vista-prog');
-    if (!v) return;
-    v.classList.remove('visible');
-    v.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-  function inicializarProgramacionSept() {
-    const root = document.getElementById('vista-prog');
-    if (!root) return;
-    const CODIGOS = [
-      {v:"", label:"—"}, {v:"MD", label:"MD"}, {v:"MS", label:"MS"},
-      {v:"T3", label:"T3"}, {v:"T", label:"T"}, {v:"TE", label:"TE"},
-      {v:"N", label:"N"}, {v:"E", label:"E"}, {v:"E1", label:"E1"}, {v:"X", label:"X"},
-      {v:"IN", label:"IN"}, {v:"F", label:"F"}, {v:"LAO", label:"LAO"},
-      {v:"FC", label:"FC"}, {v:"DV", label:"DV"}, {v:"NP", label:"NP"},
-      {v:"TP", label:"TP"}, {v:"14F", label:"14F"}, {v:"BLOQ", label:"❌"},
-      {v:"?", label:"?"}
-    ];
-    // Códigos que trae Cajeros y no están en la lista (LIC, T1, ...)
-    Object.keys(PROG_CAJ).forEach(function (k) {
-      (PROG_CAJ[k].codList || []).forEach(function (c) {
-        if (!CODIGOS.some(function (o) { return o.v === c; })) CODIGOS.splice(CODIGOS.length - 2, 0, { v: c, label: c });
-      });
-    });
-    const CLASES_COLOR = ["md","ms","t3","t","te","n","e","e1","x","in","f","lao","fc","dv","np","tp","f14","bloq","duda","vacio"];
-    function prefixDeTd(td) {
-      const i = infoTablaDeElemento(td);
-      return prefijoProgMes(i.mes, i.anio);
-    }
-    function snapshotKeyActivo() {
-      const i = infoDeIdTablaProg(window._progMesActivo) || { mes: 8, anio: 2026 };
-      return prefijoProgMes(i.mes, i.anio) + 'SNAPSHOT';
-    }
-    function snapshotKeyDeTd(td) {
-      return prefixDeTd(td) + 'SNAPSHOT';
-    }
-    let viendoOriginal = false;
-    window._progMesActivo = window._progMesActivo || mesProgPorDefecto();
-
-    function claseColor(codigo) {
-      const c = (codigo || "").trim().toLowerCase();
-      const mapa = {
-        "md":"md","ms":"ms","t3":"t3","t":"t","te":"te","n":"n","e":"e","e1":"e1","x":"x",
-        "in":"in","f":"f","lao":"lao","fc":"fc","dv":"dv","np":"np","tp":"tp",
-        "14f":"f14","bloq":"bloq","?":"duda","lic":"lao","10a":"f14","10j":"f14"
-      };
-      return mapa[c] || "vacio";
-    }
-    function aplicarClase(td, codigo) {
-      td.classList.remove(...CLASES_COLOR);
-      td.classList.add(claseColor(codigo));
-    }
-    function valorCelda(td) {
-      const legajo = td.getAttribute('data-legajo');
-      const dia = td.getAttribute('data-dia');
-      const original = td.getAttribute('data-code') || "";
-      const key = prefixDeTd(td) + legajo + "_" + dia;
-      const guardado = localStorage.getItem(key);
-      return (guardado !== null) ? guardado : original;
-    }
-    function setSelectValue(select, valor) {
-      // asegurar opción si no existe
-      if (valor && !Array.from(select.options).some(o => o.value === valor)) {
-        const o = document.createElement('option');
-        o.value = valor;
-        o.textContent = valor;
-        select.appendChild(o);
-      }
-      select.value = valor;
-    }
-    function crearSelect(td) {
-      if (td.querySelector('select')) return;
-      const legajo = td.getAttribute('data-legajo');
-      const dia = td.getAttribute('data-dia');
-      const original = td.getAttribute('data-code') || "";
-      const key = prefixDeTd(td) + legajo + "_" + dia;
-      const valorInicial = valorCelda(td);
-      const select = document.createElement('select');
-      CODIGOS.forEach(opt => {
-        const o = document.createElement('option');
-        o.value = opt.v;
-        o.textContent = opt.label;
-        select.appendChild(o);
-      });
-      setSelectValue(select, valorInicial);
-      select.addEventListener('change', () => {
-        if (viendoOriginal) return;
-        aplicarClase(td, select.value);
-        // Igual a la base (Cajeros) = sin corrección, así siguen llegando los cambios de Cajeros
-        if (select.value === original) localStorage.removeItem(key);
-        else localStorage.setItem(key, select.value);
-        marcarPendienteGuardar();
-        try { actualizarTotalesHEProg(); } catch (e) {}
-      });
-      td.innerHTML = '';
-      td.appendChild(select);
-      aplicarClase(td, valorInicial);
-    }
-    function marcarPendienteGuardar() {
-      const el = root.querySelector('#prog-estado-guardado');
-      if (!el) return;
-      el.classList.remove('ok');
-      el.textContent = 'Hay cambios — podés pulsar 💾 Guardar para confirmar el snapshot.';
-    }
-    /** Código de la versión INICIAL del mes para una celda (la del PDF) */
-    function valorInicialCelda(td) {
-      try { return (function () { const im = infoTablaDeElemento(td); return codigoProgInicial(td.getAttribute('data-legajo'), td.getAttribute('data-dia'), im.mes, im.anio); })() || ''; } catch (e) { return ''; }
-    }
-    // usarOriginal = ver la programación INICIAL del mes (solo lectura); marca lo que cambió desde entonces
-    function aplicarValoresAGrilla(usarOriginal) {
-      let difs = 0;
-      root.querySelectorAll('td[data-code]').forEach(function (td) {
-        const select = td.querySelector('select');
-        if (!select) return;
-        const actual = valorCelda(td);
-        const val = usarOriginal ? valorInicialCelda(td) : actual;
-        const dif = !!usarOriginal && String(val || '').toUpperCase() !== String(actual || '').toUpperCase();
-        td.classList.toggle('prog-dif-ini', dif);
-        if (dif) { td.setAttribute('data-actual', actual || '—'); if (td.offsetParent !== null) difs++; } else td.removeAttribute('data-actual');
-        setSelectValue(select, val);
-        aplicarClase(td, val);
-        const sinSesion = (typeof puedeModificarTablero === 'function' && !puedeModificarTablero());
-        select.disabled = !!usarOriginal || sinSesion;
-      });
-      try { actualizarTotalesHEProg(); } catch (e) {}
-      window._progDifsInicial = difs;
-    }
-    function guardarProgramacion() {
-      if (typeof puedeModificarTablero === 'function' && !puedeModificarTablero()) {
-        alert('Sin sesión no se puede modificar la programación.\nIniciá sesión para editar.');
-        return;
-      }
-      if (viendoOriginal) {
-        alert('Estás viendo el original. Volvé a la vista actual para guardar cambios.');
-        return;
-      }
-      const snap = {};
-      let n = 0;
-      root.querySelectorAll('td[data-code]').forEach(function (td) {
-        const legajo = td.getAttribute('data-legajo');
-        const dia = td.getAttribute('data-dia');
-        const select = td.querySelector('select');
-        const val = select ? select.value : valorCelda(td);
-        const key = prefixDeTd(td) + legajo + "_" + dia;
-        // Solo se guardan las correcciones; lo igual a la base sigue a Cajeros
-        if (val === (td.getAttribute('data-code') || '')) localStorage.removeItem(key);
-        else localStorage.setItem(key, val);
-        snap[legajo + "_" + dia] = val;
-        n++;
-      });
-      try {
-        localStorage.setItem(snapshotKeyActivo(), JSON.stringify({
-          fechaGuardado: new Date().toLocaleString('es-AR'),
-          celdas: snap
-        }));
-      } catch (e) { console.warn(e); }
-      const el = root.querySelector('#prog-estado-guardado');
-      if (el) {
-        el.classList.add('ok');
-        el.textContent = '✅ Guardado (' + n + ' celdas) — ' + new Date().toLocaleString('es-AR');
-      }
-    }
-    function pintarBadgeInicial() {
-      const badge = root.querySelector('#prog-badge-vista');
-      if (!badge || !viendoOriginal) return;
-      badge.style.display = 'inline';
-      badge.textContent = 'Vista: INICIAL (solo lectura) · ' + (window._progDifsInicial || 0) +
-        ' celda(s) cambiaron desde entonces (marcadas en verde)';
-    }
-    // Para recontar al cambiar de mes estando en la vista inicial
-    window._progRefrescarVistaInicial = function () {
-      if (!viendoOriginal) return;
-      aplicarValoresAGrilla(true);
-      pintarBadgeInicial();
-    };
-    function toggleVerOriginal() {
-      const btn = root.querySelector('#btn-prog-ver-original');
-      const badge = root.querySelector('#prog-badge-vista');
-      viendoOriginal = !viendoOriginal;
-      root.classList.toggle('modo-original-prog', viendoOriginal);
-      if (viendoOriginal) {
-        aplicarValoresAGrilla(true);
-        if (btn) {
-          btn.textContent = '✏️ Ver actual';
-          btn.classList.add('activo-vista');
-        }
-        if (badge) {
-          badge.style.display = 'inline';
-          pintarBadgeInicial();
-        }
-        // Los 3 botones permanecen visibles en la misma posición
-        const bg = root.querySelector('#btn-prog-guardar');
-        const br = root.querySelector('#btn-reset');
-        if (bg) bg.style.visibility = 'visible';
-        if (br) br.style.visibility = 'visible';
-      } else {
-        aplicarValoresAGrilla(false);
-        if (btn) {
-          btn.textContent = '👁 Ver inicial';
-          btn.classList.remove('activo-vista');
-        }
-        if (badge) {
-          badge.style.display = 'none';
-          badge.textContent = '';
-        }
-        const bg = root.querySelector('#btn-prog-guardar');
-        const br = root.querySelector('#btn-reset');
-        if (bg) bg.style.visibility = 'visible';
-        if (br) br.style.visibility = 'visible';
-      }
-    }
-    async function restablecerTodo() {
-      if (typeof exigirAdmin === 'function') {
-        if (!(await exigirAdmin('Restablecer programación (solo administrador)'))) return;
-      } else {
-        alert('❌ No autorizado.');
-        return;
-      }
-      if (!confirm('¿Restablecer todos los casilleros a los valores originales?\nSe borrarán los cambios guardados de la Programación en este navegador.')) return;
-      if (viendoOriginal) {
-        viendoOriginal = false;
-        root.classList.remove('modo-original-prog');
-        const btn = root.querySelector('#btn-prog-ver-original');
-        if (btn) {
-          btn.textContent = '👁 Ver inicial';
-          btn.classList.remove('activo-vista');
-        }
-        const badge = root.querySelector('#prog-badge-vista');
-        if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
-      }
-      root.querySelectorAll('td[data-code]').forEach(function (td) {
-        const legajo = td.getAttribute('data-legajo');
-        const dia = td.getAttribute('data-dia');
-        localStorage.removeItem(prefixDeTd(td) + legajo + "_" + dia);
-      });
-      try { localStorage.removeItem(snapshotKeyActivo()); } catch (e) {}
-      aplicarValoresAGrilla(false);
-      root.querySelectorAll('td[data-code] select').forEach(function (s) { s.disabled = false; });
-      const el = root.querySelector('#prog-estado-guardado');
-      if (el) {
-        el.classList.remove('ok');
-        el.textContent = 'Restablecido a los valores originales.';
-      }
-    }
-
-    root.querySelectorAll('td[data-code]').forEach(crearSelect);
-
-    function pintarHeadersFeriadosProg() {
-      root.querySelectorAll('tr.dia-header th[data-prog-dia]').forEach(function (th) {
-        const im = infoTablaDeElemento(th);
-        const dia = parseInt(th.getAttribute('data-prog-dia'), 10);
-        th.classList.remove('prog-feriado', 'prog-vispera');
-        if (esFeriadoProg(dia, im.mes, im.anio)) {
-          th.classList.add('prog-feriado');
-          th.title = 'Feriado (clic para quitar)';
-        } else if (esVisperaPorProg(dia, im.mes, im.anio)) {
-          th.classList.add('prog-vispera');
-          th.title = 'Víspera de feriado';
-        } else {
-          th.title = 'Clic para marcar feriado el día ' + dia;
-        }
-      });
-    }
-    window.pintarHeadersFeriadosProg = pintarHeadersFeriadosProg;
-    function bindHeadersFeriadosProg() {
-    root.querySelectorAll('tr.dia-header').forEach(function (tr) {
-      const imTr = infoTablaDeElemento(tr);
-      const mesTr = imTr.mes, anioTr = imTr.anio;
-      const maxDia = diasDelMesProg(mesTr, anioTr);
-      tr.querySelectorAll('th').forEach(function (th) {
-        if (th.classList.contains('col-legajo') || th.classList.contains('col-nombre') || th.classList.contains('col-he-prog')) return;
-        const htmlTh = String(th.innerHTML || '');
-        const m2 = htmlTh.match(/<br\s*\/?\s*>(\d{1,2})/i) || String(th.textContent || '').match(/(\d{1,2})/);
-        if (!m2) return;
-        const dia = parseInt(m2[1], 10);
-        if (!dia || dia < 1 || dia > maxDia) return;
-        th.setAttribute('data-prog-dia', String(dia));
-        th.classList.add('prog-dia-click');
-        if (!th._feriadoBound) {
-          th._feriadoBound = true;
-          th.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof toggleFeriadoProg === 'function') toggleFeriadoProg(dia, mesTr, anioTr);
-          });
-        }
-      });
-    });
-    }
-    bindHeadersFeriadosProg();
-    try { pintarHeadersFeriadosProg(); } catch (e) {}
-
-    function actualizarTotalesHEProg() {
-      let per = null;
-      try {
-        if (typeof periodoLiquidacionHE === 'function') per = periodoLiquidacionHE();
-      } catch (e) {}
-      root.querySelectorAll('td.he-prog-total').forEach(function (tdTot) {
-        const leg = tdTot.getAttribute('data-legajo-he');
-        if (!leg) return;
-        let sum = 0;
-        root.querySelectorAll('td[data-code][data-legajo="' + leg + '"]').forEach(function (td) {
-          const dia = parseInt(td.getAttribute('data-dia'), 10);
-          if (!dia) return;
-          // HE programadas = versión INICIAL del mes, solo días del período 26→25
-          const imTd = infoTablaDeElemento(td);
-          const cod = codigoProgInicial(leg, dia, imTd.mes, imTd.anio);
-          if (!cod) return;
-          const fDate = new Date(imTd.anio, imTd.mes, dia);
-          if (per && typeof fechaEnRangoHE === 'function') {
-            if (!fechaEnRangoHE(fDate, per.desdeMs, per.hastaMs)) return;
-          }
-          let he = 0;
-          try {
-            if (typeof horasExtraPorCodigo === 'function') {
-              he = horasExtraPorCodigo(cod, fDate, null) || 0;
-            }
-          } catch (e) { he = 0; }
-          sum += he;
-        });
-        const v = Math.round(sum * 100) / 100;
-        tdTot.textContent = v ? String(v).replace('.', ',') : '0';
-        const lab = (per && per.label) ? per.label : '26→25';
-        tdTot.title = 'HE programadas (versión inicial, período ' + lab + '): ' + v + ' hs';
-      });
-    }
-
-    // Total HE al final de cada fila
-    try { actualizarTotalesHEProg(); } catch (eHe) {}
-
-    // Tablas que llegan (o se rearman) desde Cajeros después de abrir la grilla
-    window._progPrepararTablas = function () {
-      root.querySelectorAll('td[data-code]').forEach(crearSelect);
-      const sinSesion = (typeof puedeModificarTablero === 'function' && !puedeModificarTablero());
-      root.querySelectorAll('td[data-code] select').forEach(function (s) { s.disabled = viendoOriginal || sinSesion; });
-      if (viendoOriginal) aplicarValoresAGrilla(true);
-      bindHeadersFeriadosProg();
-      try { pintarHeadersFeriadosProg(); } catch (e) {}
-      try { actualizarTotalesHEProg(); } catch (e) {}
-      try { cambiarMesProgramacion(window._progMesActivo); } catch (e) {}
-      try { const inp = root.querySelector('#prog-buscar-empleado'); if (inp && inp.value) filtrarProgramacionPorNombre(); } catch (e) {}
-    };
-
-    function filtrarProgramacionPorNombre() {
-      const inp = root.querySelector('#prog-buscar-empleado');
-      const btnLimp = root.querySelector('#btn-prog-limpiar-busqueda');
-      const q = (inp && inp.value || '').trim().toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (btnLimp) btnLimp.style.display = q ? '' : 'none';
-      const filas = Array.prototype.slice.call(root.querySelectorAll('table tbody tr'));
-      let visibles = 0;
-
-      // 1) Empleados: mostrar solo coincidencias
-      filas.forEach(function (tr) {
-        if (tr.classList.contains('dia-header') || tr.classList.contains('grupo-header')) return;
-        const nomTd = tr.querySelector('td.nombre-cell');
-        const legTd = tr.querySelector('td.legajo-cell');
-        if (!nomTd && !legTd) {
-          // fila auxiliar: ocultar con filtro
-          tr.classList.toggle('prog-filtrado-oculto', !!q);
-          return;
-        }
-        const nom = (nomTd && nomTd.textContent || '').toLowerCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const leg = (legTd && legTd.textContent || '').toLowerCase();
-        const ok = !q || nom.indexOf(q) >= 0 || leg.indexOf(q) >= 0;
-        tr.classList.toggle('prog-filtrado-oculto', !ok);
-        if (ok) visibles++;
-      });
-
-      // 2) Encabezados de grupo y de fechas: visibles si hay empleado coincidente en ese bloque
-      //    (así al buscar un cajero se mantiene la fila superior con las fechas de su grupo)
-      function bloqueTieneEmpleadoVisible(startIdx) {
-        for (let j = startIdx + 1; j < filas.length; j++) {
-          const next = filas[j];
-          if (next.classList.contains('grupo-header')) break;
-          if (next.classList.contains('dia-header')) continue;
-          if (!next.classList.contains('prog-filtrado-oculto') &&
-              (next.querySelector('td.nombre-cell') || next.querySelector('td.legajo-cell'))) {
-            return true;
-          }
-        }
-        return false;
-      }
-      filas.forEach(function (tr, i) {
-        if (!tr.classList.contains('dia-header') && !tr.classList.contains('grupo-header')) return;
-        if (!q) {
-          tr.classList.remove('prog-filtrado-oculto');
-          return;
-        }
-        tr.classList.toggle('prog-filtrado-oculto', !bloqueTieneEmpleadoVisible(i));
-      });
-
-      if (inp && q) {
-        inp.title = visibles ? ('Mostrando ' + visibles + ' empleado(s)') : 'Sin coincidencias';
-      } else if (inp && !q) {
-        inp.title = 'Escribí un nombre o legajo para ver solo su programación';
-      }
-    }
-
-    const inpBuscar = root.querySelector('#prog-buscar-empleado');
-    if (inpBuscar && !inpBuscar._boundFiltro) {
-      inpBuscar._boundFiltro = true;
-      inpBuscar.addEventListener('input', filtrarProgramacionPorNombre);
-      inpBuscar.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-          inpBuscar.value = '';
-          filtrarProgramacionPorNombre();
-          inpBuscar.blur();
-        }
-      });
-    }
-    const btnLimpBuscar = root.querySelector('#btn-prog-limpiar-busqueda');
-    if (btnLimpBuscar && !btnLimpBuscar._boundFiltro) {
-      btnLimpBuscar._boundFiltro = true;
-      btnLimpBuscar.addEventListener('click', function () {
-        if (inpBuscar) inpBuscar.value = '';
-        filtrarProgramacionPorNombre();
-        if (inpBuscar) inpBuscar.focus();
-      });
-    }
-
-    const btnColoresProg = root.querySelector('#btn-prog-colores');
-    if (btnColoresProg) {
-      let esAdminProg = false;
-      try {
-        if (typeof cargarSesion === 'function') cargarSesion();
-        if (typeof sesionActual !== 'undefined' && sesionActual && sesionActual.esAdmin) esAdminProg = true;
-      } catch (e) {}
-      btnColoresProg.style.display = esAdminProg ? '' : 'none';
-      if (!btnColoresProg._bound) {
-        btnColoresProg._bound = true;
-        btnColoresProg.addEventListener('click', function () {
-          if (typeof abrirPanelColoresProg === 'function') abrirPanelColoresProg();
-        });
-      }
-    }
-    try { if (typeof aplicarColoresProgPersonalizados === 'function') aplicarColoresProgPersonalizados(); } catch (e) {}
-
-    const btnGuardar = root.querySelector('#btn-prog-guardar');
-    if (btnGuardar && !btnGuardar._bound) {
-      btnGuardar._bound = true;
-      btnGuardar.addEventListener('click', guardarProgramacion);
-    }
-    const btnVerOrig = root.querySelector('#btn-prog-ver-original');
-    if (btnVerOrig && !btnVerOrig._bound) {
-      btnVerOrig._bound = true;
-      btnVerOrig.addEventListener('click', toggleVerOriginal);
-    }
-    const btnReset = root.querySelector('#btn-reset');
-    if (btnReset && !btnReset._bound) {
-      btnReset._bound = true;
-      btnReset.addEventListener('click', restablecerTodo);
-    }
-    if (btnReset) {
-      let esAdmin = false;
-      try {
-        if (typeof sesionActual !== 'undefined' && sesionActual && sesionActual.esAdmin) esAdmin = true;
-        else if (typeof cargarSesion === 'function') {
-          cargarSesion();
-          if (sesionActual && sesionActual.esAdmin) esAdmin = true;
-        }
-      } catch (e) {}
-      btnReset.style.display = esAdmin ? '' : 'none';
-    }
-
-    // Estado inicial del mensaje
-    try {
-      const snapRaw = localStorage.getItem(snapshotKeyActivo());
-      if (snapRaw) {
-        const snap = JSON.parse(snapRaw);
-        const el = root.querySelector('#prog-estado-guardado');
-        if (el && snap.fechaGuardado) {
-          el.classList.add('ok');
-          el.textContent = 'Último guardado: ' + snap.fechaGuardado;
-        }
-      }
-    } catch (e) {}
-  }
-
-  // Atajo Escape para cerrar programación
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      const v = document.getElementById('vista-prog');
-      if (v && v.classList.contains('visible')) cerrarProgramacionSept();
-    }
-  });
 
 </script>
 
-  <!-- Vista Programación Septiembre (integrada) -->
-  <div id="panel-colores-prog" class="panel-cajeros-dia" onclick="if(event.target===this)cerrarPanelColoresProg()">
-    <div class="panel-ranking-box" style="min-width:300px;max-width:96vw;max-height:90vh" onclick="event.stopPropagation()">
-      <div class="panel-cajeros-dia-header" style="position:sticky;top:0;z-index:2">
-        <span>🎨 Colores — Programación</span>
-        <div class="panel-ranking-header-btns">
-          <button type="button" class="btn" style="min-width:40px;min-height:36px;background:#8b2e2e"
-            onclick="event.preventDefault();event.stopPropagation();cerrarPanelColoresProg()">✕</button>
-        </div>
-      </div>
-      <div class="panel-ranking-body" id="panel-colores-prog-body" style="padding:10px 12px"></div>
-    </div>
-  </div>
-  <div id="vista-prog" aria-hidden="true">
-    <div class="barra-top-prog">
-      <button type="button" class="btn-volver-tablero" onclick="cerrarProgramacionSept()">← Volver al Tablero</button>
-      <h1>📅 Programación — Cajeros Venta Pago · Septiembre 2026</h1>
-    </div>
-    <div class="prog-inner" id="prog-contenido">
-<div class="prog-mes-tabs" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px 0">
-  <button type="button" id="btn-prog-mes-sept" class="btn prog-mes-btn activo" style="background:#c45c26;min-width:auto;padding:8px 14px;font-size:0.95rem" onclick="cambiarMesProgramacion('sept')">Septiembre 2026</button>
-  <button type="button" id="btn-prog-mes-oct" class="btn prog-mes-btn" style="background:#5c6bc0;min-width:auto;padding:8px 14px;font-size:0.95rem;opacity:0.75" onclick="cambiarMesProgramacion('oct')">Octubre 2026</button>
-</div>
-<h1 id="prog-titulo-mes">CAJEROS VENTA PAGO SEPTIEMBRE 2026</h1>
-<p class="subtitulo">Los 7 grupos completos — podés cambiar de mes con los botones de arriba</p>
-
-<p class="prog-feriados-leyenda">Feriados: clic en el <b>número del día</b> del encabezado (rojo = feriado · naranja = víspera del día anterior). Acá se controla la víspera del tablero (Cabina/Jefes ya no tienen botón VF).</p>
-<div class="barra-acciones">
-  <div class="prog-buscador">
-    <label for="prog-buscar-empleado">Buscar</label>
-    <input type="search" id="prog-buscar-empleado" placeholder="Nombre o legajo…" autocomplete="off" title="Escribí un nombre o legajo para ver solo su programación">
-    <button type="button" id="btn-prog-limpiar-busqueda" title="Mostrar todos" style="display:none;min-width:auto;padding:4px 10px;font-size:0.85rem">Mostrar todos</button>
-  </div>
-  <div class="prog-botones">
-    <button type="button" id="btn-prog-colores" title="Colores de códigos en Programación">🎨</button>
-    <button type="button" id="btn-prog-guardar" title="Guardar todos los cambios en este navegador">💾</button>
-    <button type="button" id="btn-prog-ver-original" title="Ver la programación inicial del mes (solo lectura), sin perder tus cambios">👁</button>
-    <button type="button" id="btn-reset" title="Solo administrador: borrar cambios y volver a los valores originales">↺</button>
-  </div>
-  <span class="nota-guardado" id="prog-estado-guardado">Los cambios se pueden guardar en este navegador.</span>
-  <span id="prog-badge-vista" class="nota-guardado" style="display:none;font-weight:700;color:#8b2e2e;"></span>
-</div>
-
-<div class="tabla-scroll">
+  <!-- Tablas fijas de septiembre/octubre 2026 (del PDF): versión inicial para las horas extra. No se muestran. -->
+  <template id="prog-tablas-fijas">
 <table id="tabla-programacion-sept" data-prog-mes="sept" class="tabla-prog-mes">
   <colgroup>
     <col style="width:54px">
@@ -15850,9 +14697,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 <tr><td class="legajo-cell">62115</td><td class="nombre-cell">DI RUSSO, MARTINA</td><td data-code="E1" data-legajo="62115" data-dia="1"></td><td data-code="N" data-legajo="62115" data-dia="2"></td><td data-code="TE" data-legajo="62115" data-dia="3"></td><td data-code="T" data-legajo="62115" data-dia="4"></td><td data-code="T" data-legajo="62115" data-dia="5"></td><td data-code="T" data-legajo="62115" data-dia="6"></td><td data-code="T" data-legajo="62115" data-dia="7"></td><td data-code="MS" data-legajo="62115" data-dia="8"></td><td data-code="F" data-legajo="62115" data-dia="9"></td><td data-code="F" data-legajo="62115" data-dia="10"></td><td data-code="E" data-legajo="62115" data-dia="11"></td><td data-code="N" data-legajo="62115" data-dia="12"></td><td data-code="T" data-legajo="62115" data-dia="13"></td><td data-code="T3" data-legajo="62115" data-dia="14"></td><td data-code="F" data-legajo="62115" data-dia="15"></td><td data-code="F" data-legajo="62115" data-dia="16"></td><td data-code="E" data-legajo="62115" data-dia="17"></td><td data-code="N" data-legajo="62115" data-dia="18"></td><td data-code="N" data-legajo="62115" data-dia="19"></td><td data-code="T" data-legajo="62115" data-dia="20"></td><td data-code="MS" data-legajo="62115" data-dia="21"></td><td data-code="T" data-legajo="62115" data-dia="22"></td><td data-code="F" data-legajo="62115" data-dia="23"></td><td data-code="F" data-legajo="62115" data-dia="24"></td><td data-code="N" data-legajo="62115" data-dia="25"></td><td data-code="E" data-legajo="62115" data-dia="26"></td><td data-code="N" data-legajo="62115" data-dia="27"></td><td data-code="T" data-legajo="62115" data-dia="28"></td><td data-code="T" data-legajo="62115" data-dia="29"></td><td data-code="MD" data-legajo="62115" data-dia="30"></td><td data-code="F" data-legajo="62115" data-dia="31"></td><td class="he-prog-total" data-legajo-he="62115" title="Total HE programadas">—</td></tr>
   </tbody>
 </table>
-</div>
-    </div>
-  </div>
+  </template>
 
 
 <div id="panel-colores-ct" class="panel-cajeros-dia" onclick="if(event.target===this)cerrarPanelColoresCT()">
@@ -15925,7 +14770,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110306', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110601', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
