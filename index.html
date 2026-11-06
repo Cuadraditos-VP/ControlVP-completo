@@ -2936,6 +2936,8 @@
   /* Jefes: las cajas sin borde ni fondo, directo sobre el fondo de pantalla (Cabina sigue con tarjetas) */
   body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { background: transparent; border: none; box-shadow: none; }
   body.modo-editable .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo { background: transparent; }
+  /* Línea fina debajo de cada título para anclar los nombres a su caja */
+  body.modo-editable .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo { border-bottom: 1px solid #6e6e6e; height: 44px; padding: 0 10px; margin-bottom: 6px; }
   </style>
 </head>
 <body class="modo-original">
