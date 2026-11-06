@@ -2853,6 +2853,11 @@
   .fila.ct-bloque:not(.ct-sigue) { padding-top: 3px; }
   .fila.ct-bloque.ct-fin { padding-bottom: 3px; }
   .fila.ct-bloque.ct-fin .turno-select { margin-bottom: 0; }
+  /* Borde fino y destacado alrededor de todo el bloque, del color fuerte del CT */
+  .fila.ct-bloque .turno-select { box-shadow: inset 1px 0 0 var(--ct-borde, transparent), inset -1px 0 0 var(--ct-borde, transparent); }
+  .fila.ct-bloque:not(.ct-sigue) .turno-select { box-shadow: inset 1px 0 0 var(--ct-borde, transparent), inset -1px 0 0 var(--ct-borde, transparent), inset 0 1px 0 var(--ct-borde, transparent); }
+  .fila.ct-bloque.ct-fin .turno-select { box-shadow: inset 1px 0 0 var(--ct-borde, transparent), inset -1px 0 0 var(--ct-borde, transparent), inset 0 -1px 0 var(--ct-borde, transparent); }
+  .fila.ct-bloque.ct-fin:not(.ct-sigue) .turno-select { box-shadow: inset 0 0 0 1px var(--ct-borde, transparent); }
   </style>
 </head>
 <body class="modo-original">
@@ -3032,11 +3037,11 @@
   /* —— Colores CT (admin): solo CSS, sin tocar lógica de registro/gris —— */
   const LS_CT_COLORES = 'tablero_ct_colores_v3';
   const CT_COLORES_DEFAULT = {
-    'MD': { bg: '#2e7d32', fg: '#ffffff', fgNombre: '#2e7d32', slot: '#43a047' },
-    'MS': { bg: '#b71c1c', fg: '#fafafa', fgNombre: '#c62828', slot: '#e53935' },
-    'T3': { bg: '#e65100', fg: '#ffffff', fgNombre: '#e65100', slot: '#fb8c00' },
-    'T':  { bg: '#1565c0', fg: '#ffffff', fgNombre: '#1565c0', slot: '#1e88e5' },
-    'TE': { bg: '#6a1b9a', fg: '#ffffff', fgNombre: '#6a1b9a', slot: '#8e24aa' },
+    'MD': { bg: '#e8f5e9', fg: '#2e7d32', fgNombre: '#2e7d32', slot: '#43a047' },
+    'MS': { bg: '#fce4e4', fg: '#b71c1c', fgNombre: '#c62828', slot: '#e53935' },
+    'T3': { bg: '#fff3e0', fg: '#e65100', fgNombre: '#e65100', slot: '#fb8c00' },
+    'T':  { bg: '#e3f2fd', fg: '#1565c0', fgNombre: '#1565c0', slot: '#1e88e5' },
+    'TE': { bg: '#f3e5f5', fg: '#6a1b9a', fgNombre: '#6a1b9a', slot: '#8e24aa' },
     'TP': { bg: '#e0f7fa', fg: '#00838f', fgNombre: '#00838f', slot: '#00acc1' },
     'IN': { bg: '#fbe9e7', fg: '#d84315', fgNombre: '#d84315', slot: '#ff7043' },
     'N':  { bg: '#e3f2fd', fg: '#1565c0', fgNombre: '#1565c0', slot: '#1e88e5' },
@@ -10407,10 +10412,13 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
             f.classList.add('ct-bloque');
             f.classList.remove('ct-sigue');
             selT.style.removeProperty('background');
+            const colV = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(v) : null;
+            if (colV) selT.style.setProperty('--ct-borde', colV.fgNombre || colV.fg);
           } else if (ctActual && !f.classList.contains('fila-vacia')) {
             f.classList.add('ct-bloque', 'ct-sigue');
             const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
             if (col && col.bg) selT.style.setProperty('background', col.bg, 'important');
+            if (col) selT.style.setProperty('--ct-borde', col.fgNombre || col.fg);
           } else {
             ctActual = '';
             f.classList.remove('ct-bloque', 'ct-sigue');
