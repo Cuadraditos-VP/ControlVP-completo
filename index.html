@@ -3101,9 +3101,19 @@
   .planta .seccion + .seccion, body.modo-editable .planta .seccion + .seccion,
   body.modo-editable.turno-noche .planta .seccion + .seccion { border-top: none; }
   body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { box-shadow: none; }
-  /* Títulos de las cajas con un color claro según el turno: TARDE durazno, NOCHE celeste */
-  .seccion-titulo, body.modo-editable .seccion-titulo { background: #f6e4d8 !important; }
-  body.turno-noche .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo { background: #dbe7f3 !important; }
+  /* Títulos de las cajas sin recuadro, directo sobre el fondo de pantalla; el recuadro queda solo en las filas */
+  .seccion, body.turno-noche .seccion, .planta .seccion + .seccion,
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion,
+  body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion {
+    background: transparent; border: none; box-shadow: none;
+  }
+  .seccion-titulo, body.turno-noche .seccion-titulo,
+  body.modo-editable .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo,
+  .planta .seccion + .seccion .seccion-titulo {
+    background: transparent !important; border: none !important; padding-left: 2px; padding-right: 2px;
+  }
+  .seccion .filas { background: #ffffff; border: 1px solid #6e6e6e; }
+  body.modo-editable .seccion .filas { border-color: #9a9a9a; }
   </style>
 </head>
 <body class="modo-original">
@@ -16178,7 +16188,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110720', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110721', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
