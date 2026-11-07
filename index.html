@@ -7182,6 +7182,8 @@ function abrirPanelCajerosDia() {
       if (typeof actualizarIndicadorBorrador === 'function') actualizarIndicadorBorrador();
       if (typeof actualizarSliderFecha === 'function') actualizarSliderFecha();
       try { if (typeof actualizarPanelResumenJornada === 'function') actualizarPanelResumenJornada(); } catch (e) {}
+      // Mandar el borrado a las otras PCs ya (sin esperar la vuelta de 10 s)
+      try { if (window.cvpTablero && cvpTablero.pronto) cvpTablero.pronto(); } catch (eSync) {}
       try {
         registrarAuditoria('borrar_dia', (alcance === 'TODO'
           ? 'Borró todos los datos del día: '
@@ -15940,13 +15942,43 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     if (document.querySelector('.modal-overlay.show, .resumen-modal-overlay, #timelineOverlay')) { setTimeout(function () { refrescarPantalla(id); }, 3000); return; }
     try {
       const g = (typeof fechasUnicasHistorial === 'function') ? fechasUnicasHistorial().find(function (x) { return fechaId(x.fecha) === id; }) : null;
-      if (!g) return;
+      if (!g) {
+        // La otra PC borró todo el día: se vacía la pantalla (si no, al guardar acá volvería a aparecer)
+        diaBorradoDesdeOtraPC();
+        return;
+      }
       const turno = (document.getElementById('turno-display') && document.getElementById('turno-display').value) || 'TARDE';
       cargarFechaDesdeGrupo(g);
       if (String(turno).toUpperCase() !== String((document.getElementById('turno-display') || {}).value || '').toUpperCase()) {
         try { cargarTurnoDesdeCacheOHistorial(turno); document.getElementById('turno-display').value = turno; mostrarVista(modo); } catch (e) {}
       }
     } catch (e) { console.warn('refrescar', e); }
+  }
+  function diaBorradoDesdeOtraPC() {
+    try {
+      const fecha = (originalData && originalData.fecha) || (editableData && editableData.fecha) || '';
+      const turno = String((document.getElementById('turno-display') || {}).value || 'TARDE').trim().toUpperCase() || 'TARDE';
+      const vacia = function (t) {
+        const d = crearEstructuraVacia(fecha, t);
+        d.fecha = fecha; d.turno = t; d.cierreFinal = false;
+        return d;
+      };
+      cacheFecha = {};
+      ['TARDE', 'NOCHE'].forEach(function (t) {
+        const d = vacia(t);
+        cacheFecha[t] = { original: d, editable: JSON.parse(JSON.stringify(d)), bloqueado: false, cierreFinal: false };
+      });
+      originalData = JSON.parse(JSON.stringify(cacheFecha[turno].original));
+      editableData = JSON.parse(JSON.stringify(cacheFecha[turno].editable));
+      originalBloqueado = false;
+      cierreFinalActivo = false;
+      edicionTrasDesbloqueoCierre = false;
+      cambiosSinGuardar = false;
+      try { undoStack = []; redoStack = []; if (typeof actualizarBotonesUndo === 'function') actualizarBotonesUndo(); } catch (e) {}
+      mostrarVista(modo);
+      try { actualizarBotonesHabilitados(); } catch (e) {}
+      avisar('Se borró este día desde la otra PC.', '#b26a00');
+    } catch (e) { console.warn('día borrado', e); }
   }
   /** Cabina hizo el cierre final en la otra PC: se cierra la sesión del jefe en esta */
   function cierreRecibido(v) {
@@ -16138,7 +16170,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110718', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110719', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
