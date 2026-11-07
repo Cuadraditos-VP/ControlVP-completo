@@ -3060,6 +3060,21 @@
     body.imprimiendo-imagen > *:not(#print-img) { display: none !important; }
     body.imprimiendo-imagen #print-img { display: block !important; visibility: visible !important; width: 100%; height: auto; max-height: 195mm; object-fit: contain; margin: 0 auto; }
   }
+
+  /* Impresión: ahorro de tinta (todo blanco; los bloques de CT como recuadro de línea finita) */
+  body.capturando-impresion, body.capturando-impresion .top-bar { background: #ffffff !important; }
+  body.capturando-impresion .planta-header { background: #ffffff !important; color: #222 !important; border: 1px solid #555; box-shadow: none !important; }
+  body.capturando-impresion .seccion { background: #ffffff !important; box-shadow: none !important; }
+  body.capturando-impresion .fila.ct-bloque::before {
+    background: transparent !important;
+    border-left: 1px solid var(--ct-borde, #888); border-right: 1px solid var(--ct-borde, #888);
+  }
+  body.capturando-impresion .fila.ct-bloque:not(.ct-sigue)::before { border-top: 1px solid var(--ct-borde, #888); }
+  body.capturando-impresion .fila.ct-bloque.ct-fin::before { border-bottom: 1px solid var(--ct-borde, #888); }
+  body.capturando-impresion .leyenda-codigo { background: #ffffff !important; }
+  body.capturando-impresion #fecha, body.capturando-impresion #turno-display, body.capturando-impresion .badge { background: #ffffff !important; }
+  /* Nunca imprimir las herramientas ni los botones de arriba */
+  @media print { .controles, .sesion-zona, #btnHerramientas, #cvp-tablero-estado { display: none !important; } }
   </style>
 </head>
 <body class="modo-original">
@@ -14627,11 +14642,12 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
    * Imprimir y compartir usan esta foto, así salen con las mismas proporciones que la pantalla.
    * cb(canvas) si sale bien; fallo() si no se pudo (sin internet para la herramienta de captura, etc.).
    */
-  function capturarTableroComoEnPantalla(cb, fallo) {
+  function capturarTableroComoEnPantalla(cb, fallo, opts) {
+    opts = opts || {};
     const plantas = document.getElementById('plantas');
     if (!plantas) { fallo && fallo(); return; }
     let listo = false;
-    const timer = setTimeout(function () { if (!listo) { listo = true; fallo && fallo(); } }, 15000);
+    const timer = setTimeout(function () { document.body.classList.remove('capturando-tablero', 'capturando-impresion'); if (!listo) { listo = true; fallo && fallo(); } }, 15000);
     const s = document.createElement('script');
     function conH(fn) {
       if (window.html2canvas) { fn(window.html2canvas); return; }
@@ -14641,6 +14657,8 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       document.head.appendChild(s);
     }
     conH(function (html2canvas) {
+      if (opts.ahorroTinta) document.body.classList.add('capturando-impresion');
+      document.body.classList.add('capturando-tablero');
       const originales = Array.from(document.querySelectorAll('#plantas select'));
       const datos = originales.map(function (sel) {
         const cs = getComputedStyle(sel);
@@ -14664,15 +14682,16 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       const alto = Math.ceil(r.bottom + window.scrollY + 70);
       // Mientras se saca la foto: sin los botones "−", los bloques de color llegan hasta el borde
       document.body.classList.add('capturando-tablero');
-      const sacarClase = function () { document.body.classList.remove('capturando-tablero'); };
+      if (opts.ahorroTinta) document.body.classList.add('capturando-impresion');
+      const sacarClase = function () { document.body.classList.remove('capturando-tablero', 'capturando-impresion'); };
       html2canvas(document.body, {
-        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+        backgroundColor: opts.ahorroTinta ? '#ffffff' : (getComputedStyle(document.body).backgroundColor || '#ffffff'),
         scale: 2, useCORS: true, logging: false,
         x: 0, y: 0, width: ancho, height: alto, windowWidth: ancho, scrollX: 0, scrollY: -window.scrollY,
         onclone: function (doc) {
-          doc.querySelectorAll('.controles, .sesion-zona, #cvp-tablero-estado, .btn-quitar-fila, .seccion-botones, .btn-resumen-caja, ' +
+          doc.querySelectorAll('.controles, .sesion-zona, #btnHerramientas, .herr-cabecera, #cvp-tablero-estado, .btn-quitar-fila, .seccion-botones, .btn-resumen-caja, ' +
             '.hit-revelar, .modal-overlay, #combo-flotante, .panel-cajeros-dia, .resumen-modal-overlay, #timelineOverlay, .hint-expand, .fecha-flecha')
-            .forEach(function (el) { el.style.display = 'none'; });
+            .forEach(function (el) { el.style.setProperty('display', 'none', 'important'); });
           const tb = doc.querySelector('.top-bar');
           if (tb) { tb.style.position = 'static'; tb.style.boxShadow = 'none'; }
           const ley = doc.getElementById('leyenda-horarios');
@@ -14742,7 +14761,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         }, 100);
       };
       img.src = canvas.toDataURL('image/png');
-    }, imprimirHojaActualFormatoViejo);
+    }, imprimirHojaActualFormatoViejo, { ahorroTinta: true });
   }
   function imprimirCabina() { imprimirHojaActual(); }
 
@@ -15969,7 +15988,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110709', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110710', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
