@@ -2954,6 +2954,15 @@
   /* Jefes: borde finito en cada caja, un poco más claro que el subrayado del título */
   body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { border: 1px solid #9a9a9a; }
   body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion { border-color: #8494a3; }
+
+  /* Fondo de pantalla distinto para TARDE y NOCHE (tarde neutro, noche azul grisáceo) */
+  :root {
+    --bg-noche-cabina: #e4ebf2;
+    --bg-jefes-tarde: #e0ddd8;
+    --bg-jefes-noche: #bccbda;
+  }
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { background: #ebe9e5; }
+  body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion { background: #d3dee8; }
   </style>
 </head>
 <body class="modo-original">
@@ -15629,7 +15638,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110702', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110703', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
