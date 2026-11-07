@@ -913,6 +913,9 @@
       outline: 2px solid #1f3fbf;
       outline-offset: -2px;
     }
+    /* Dentro de un bloque de CT, el casillero seleccionado conserva el fondo del bloque
+       (si no, la letra clara de los CT oscuros, como N, E o X, no se lee) */
+    #plantas .fila.ct-bloque select.nombre-select:focus { background: transparent; }
     .nombre-select:disabled {
       background: transparent;
       opacity: 0.95;
@@ -16115,7 +16118,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110713', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110714', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
