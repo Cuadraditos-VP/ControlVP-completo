@@ -907,6 +907,12 @@
       border-color: #d4c4a8;
       background: #fffdf8;
     }
+    /* Casillero de caja seleccionado: recuadro bien visible */
+    #plantas .fila select.nombre-select:focus,
+    #plantas .fila select.turno-select:focus {
+      outline: 2px solid #1f3fbf;
+      outline-offset: -2px;
+    }
     .nombre-select:disabled {
       background: transparent;
       opacity: 0.95;
@@ -8661,10 +8667,32 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     const enInput = tag === 'input' || tag === 'textarea' || tag === 'select';
     if ((e.ctrlKey || e.metaKey) && !e.altKey) {
       const k = e.key.toLowerCase();
-      if (k === 'z' && !e.shiftKey) {
+      const esDeshacer = (k === 'z' && !e.shiftKey);
+      const esRehacer = (k === 'y' || (k === 'z' && e.shiftKey));
+      // Casillero de caja seleccionado (sin lista abierta): Ctrl+Z / Ctrl+Y deshacen y rehacen,
+      // y el foco vuelve al mismo casillero
+      const t = e.target;
+      const enCasillero = tag === 'select' && t.classList &&
+        (t.classList.contains('turno-select') || t.classList.contains('nombre-select')) &&
+        !(typeof selectListaAbierta === 'function' && selectListaAbierta(t));
+      if ((esDeshacer || esRehacer) && enCasillero) {
+        e.preventDefault();
+        e.stopPropagation();
+        const fila = t.closest('.fila');
+        if (fila) {
+          pendingFocusCelda = {
+            p: parseInt(fila.dataset.pIdx, 10), s: parseInt(fila.dataset.sIdx, 10), f: parseInt(fila.dataset.fIdx, 10),
+            campo: t.classList.contains('turno-select') ? 'turno' : 'nombre', abrirLista: false
+          };
+        }
+        if (esDeshacer) deshacer(); else rehacer();
+        setTimeout(aplicarPendingFocusCelda, 0);
+        return;
+      }
+      if (esDeshacer) {
         if (!enInput) { e.preventDefault(); deshacer(); return; }
       }
-      if (k === 'y' || (k === 'z' && e.shiftKey)) {
+      if (esRehacer) {
         if (!enInput) { e.preventDefault(); rehacer(); return; }
       }
     }
@@ -9209,6 +9237,21 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       });
     });
     return data;
+  }
+
+  /**
+   * Clic en un casillero de caja (CT o nombre) ya ocupado: lo deja seleccionado, sin abrir la lista.
+   * Un segundo clic sobre el casillero ya seleccionado abre la lista para cambiarlo.
+   * Devuelve true si se encargó del clic.
+   */
+  function enfocarCasilleroOcupado(sel) {
+    const v = String(sel.value || '').trim();
+    if (!v || v === '—') return false;
+    if (document.activeElement === sel) return false;
+    document.querySelectorAll('.foco-teclado').forEach(function (el) { el.classList.remove('foco-teclado'); });
+    try { sel.focus(); } catch (err) {}
+    sel.classList.add('foco-teclado');
+    return true;
   }
 
   /** Navegación con flechas entre turno/nombre y filas */
@@ -10350,6 +10393,8 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
               if (typeof selectListaAbierta === 'function' && selectListaAbierta(selectNombre)) return;
               // Evitar menú nativo; usar lista flotante
               e.preventDefault();
+              // Casillero ocupado: el primer clic solo lo selecciona (Supr/Backspace borra, Enter o tipear cambia)
+              if (enfocarCasilleroOcupado(selectNombre)) return;
               try { selectNombre.focus(); } catch (err) {}
               if (typeof abrirListaSelect === 'function') abrirListaSelect(selectNombre);
             });
@@ -10382,6 +10427,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
               if (selectTurno.disabled) return;
               if (typeof selectListaAbierta === 'function' && selectListaAbierta(selectTurno)) return;
               e.preventDefault();
+              if (enfocarCasilleroOcupado(selectTurno)) return;
               try { selectTurno.focus(); } catch (err) {}
               if (typeof abrirListaSelect === 'function') abrirListaSelect(selectTurno);
             });
@@ -10609,6 +10655,8 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
               if (typeof rellenarOpcionesNombre === 'function') {
                 rellenarOpcionesNombre(selectNombre, ult, selectNombre.value || '', yaUsados);
               }
+              // CT borrado (Supr/Backspace): el foco se queda en el CT, sin saltar al nombre
+              if (!vTurno) return;
               pendingFocusCelda = null;
               try { selectNombre.focus(); selectNombre.classList.add('foco-teclado'); } catch (eF) {}
               if (typeof abrirListaSelect === 'function') {
@@ -16067,7 +16115,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110712', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110713', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
