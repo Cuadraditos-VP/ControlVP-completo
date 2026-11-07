@@ -2985,21 +2985,39 @@
   }
   .leyenda-horarios-header, body.turno-noche .leyenda-horarios-header { color: #333; }
 
-  /* Herramientas de arriba: gris oscuro si se pueden usar, gris claro si no (íconos sin color) */
-  .top-bar .btn, .top-bar .btn-save:not(.btn-save-inactivo):not(.btn-disabled), .top-bar .btn-sesion, .top-bar .btn-sesion.activa,
-  .top-bar #btnCajerosConexion, .top-bar .grupo-admin .btn, .top-bar .btn-peligro, .top-bar .btn-unlock,
-  .top-bar .btn-reg, .top-bar .btn-cierre, .top-bar .btn-hist, .top-bar .btn-full, .top-bar .btn-emp,
-  .top-bar .btn-cajeros-dia, .top-bar .btn-new, .top-bar .btn-resumen-jornada, .top-bar .btn-informe-jefes,
-  .top-bar .btn-undo, .top-bar .btn-redo {
-    background: #4a4a4a; color: #ffffff; box-shadow: none; opacity: 1; filter: grayscale(1);
+  /* Botones de sesión (🔗, 👤, 🧰): neutros */
+  .top-bar .sesion-zona .btn, .top-bar .sesion-zona .btn-sesion.activa, .top-bar #btnCajerosConexion { background: #4a4a4a; color: #fff; }
+
+  /* Herramientas: ocultas en la barra; se abren con 🧰 en una ventana de dos columnas que se puede arrastrar */
+  .top-bar .controles { display: none !important; }
+  .top-bar .controles.herr-abierta {
+    display: grid !important; position: fixed; z-index: 1500;
+    grid-template-columns: repeat(2, 42px); gap: 5px; justify-content: center;
+    margin: 0; padding: 0 8px 8px; border: 1px solid #9a9a9a; border-top: none;
+    background: #f4f4f4; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
   }
-  .top-bar .btn:hover { filter: grayscale(1) brightness(0.85); }
-  .top-bar .btn:disabled, .top-bar .btn.btn-disabled, .top-bar .btn-save.btn-save-inactivo,
-  body.solo-lectura .top-bar .btn-reg, body.solo-lectura .top-bar .btn-cierre, body.solo-lectura .top-bar .btn-unlock,
-  body.solo-lectura .top-bar .btn-informe-jefes {
-    background: #c8c8c8 !important; color: #f2f2f2 !important; opacity: 0.7; filter: grayscale(1);
+  .top-bar .controles.herr-abierta > .grupo-btns { display: contents !important; }
+  .top-bar .controles.herr-abierta .btn { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
+  .herr-cabecera {
+    grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    margin: 0 -8px 3px; padding: 4px 2px 4px 6px; background: #4a4a4a; color: #fff;
+    font-size: 0.68rem; font-weight: 700; cursor: move; user-select: none; touch-action: none;
   }
-  .top-bar .btn:disabled:hover, .top-bar .btn.btn-disabled:hover { filter: grayscale(1); }
+  .herr-cabecera button { background: transparent; border: none; color: #fff; font-size: 1rem; cursor: pointer; padding: 0 4px; line-height: 1; }
+  #btnHerramientas.activa { background: #222; }
+  /* Colores originales de cada herramienta */
+  .top-bar .controles .btn-undo, .top-bar .controles .btn-redo { background: #5c4033; }
+  .top-bar .controles .btn-save:not(.btn-save-inactivo):not(.btn-disabled) { background: #1e5a3a; }
+  .top-bar .controles .btn-new { background: #8b6914; }
+  .top-bar .controles .btn-reg { background: #6a1b9a; }
+  .top-bar .controles .btn-unlock, .top-bar .controles .btn-peligro, .top-bar .controles .grupo-admin .btn-peligro { background: #b71c1c; }
+  .top-bar .controles .btn-cierre { background: #4a148c; }
+  .top-bar .controles .btn-hist, .top-bar .controles .btn-resumen-jornada { background: #1565c0; }
+  .top-bar .controles .btn-informe-jefes { background: #00695c; }
+  .top-bar .controles .btn-emp { background: #5c6bc0; }
+  .top-bar .controles .btn-cajeros-dia { background: #00838f; }
+  .top-bar .controles .btn-full { background: #2c4f66; }
+  .top-bar .controles .grupo-admin .btn:not(.btn-peligro) { background: #455a64; }
   .top-bar .fecha-flecha, .top-bar .fecha-flecha:hover:not(:disabled) { color: #444; border-color: #c8c8c8; }
   .top-bar .fecha-flecha { background: #ececec; }
   .top-bar .fecha-flecha:hover:not(:disabled) { background: #dddddd; }
@@ -3031,6 +3049,7 @@
         </div>
       </div>
       <div class="sesion-zona">
+        <button class="btn" id="btnHerramientas" type="button" title="Herramientas (se puede arrastrar)">🧰</button>
         <button class="btn" id="btnCajerosConexion" onclick="abrirConexionCajeros()" title="Conectar con Cajeros (código de invitación)" style="display:none">🔗</button>
         <span id="badge-sesion"></span>
         <button class="btn btn-sesion" id="btnSesion" onclick="abrirPanelSesion()" title="Sesión / usuarios">👤</button>
@@ -15671,6 +15690,70 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 </script>
 
 <script>
+/* Ventana de herramientas: 🧰 la abre/cierra; se arrastra desde la barra de arriba y recuerda dónde quedó */
+(function () {
+  const LS_POS = 'cvp_herr_pos_v1', LS_ABIERTA = 'cvp_herr_abierta_v1';
+  function iniciar() {
+    const panel = document.querySelector('.top-bar .controles');
+    const boton = document.getElementById('btnHerramientas');
+    if (!panel || !boton) return;
+    const cab = document.createElement('div');
+    cab.className = 'herr-cabecera';
+    cab.innerHTML = '<span>Herramientas</span><button type="button" title="Cerrar">✕</button>';
+    panel.insertBefore(cab, panel.firstChild);
+    function ubicar(x, y) {
+      const w = panel.offsetWidth || 110, h = panel.offsetHeight || 200;
+      x = Math.max(0, Math.min(x, window.innerWidth - w));
+      y = Math.max(0, Math.min(y, window.innerHeight - 30));
+      panel.style.left = x + 'px';
+      panel.style.top = y + 'px';
+      return { x: x, y: y };
+    }
+    function posGuardada() {
+      try { const p = JSON.parse(localStorage.getItem(LS_POS) || 'null'); if (p && isFinite(p.x) && isFinite(p.y)) return p; } catch (e) {}
+      const r = boton.getBoundingClientRect();
+      return { x: r.right - 110, y: r.bottom + 6 };
+    }
+    function abrir(si) {
+      panel.classList.toggle('herr-abierta', si);
+      boton.classList.toggle('activa', si);
+      try { localStorage.setItem(LS_ABIERTA, si ? '1' : '0'); } catch (e) {}
+      if (si) { const p = posGuardada(); ubicar(p.x, p.y); }
+    }
+    boton.addEventListener('click', function () { abrir(!panel.classList.contains('herr-abierta')); });
+    cab.querySelector('button').addEventListener('click', function () { abrir(false); });
+    let arr = null;
+    cab.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button')) return;
+      const r = panel.getBoundingClientRect();
+      arr = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      try { cab.setPointerCapture(e.pointerId); } catch (e2) {}
+      e.preventDefault();
+    });
+    cab.addEventListener('pointermove', function (e) {
+      if (!arr) return;
+      ubicar(e.clientX - arr.dx, e.clientY - arr.dy);
+    });
+    function soltar() {
+      if (!arr) return;
+      arr = null;
+      try { localStorage.setItem(LS_POS, JSON.stringify({ x: parseFloat(panel.style.left) || 0, y: parseFloat(panel.style.top) || 0 })); } catch (e) {}
+    }
+    cab.addEventListener('pointerup', soltar);
+    cab.addEventListener('pointercancel', soltar);
+    window.addEventListener('resize', function () {
+      if (panel.classList.contains('herr-abierta')) ubicar(parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
+    });
+    let abierta = false;
+    try { abierta = localStorage.getItem(LS_ABIERTA) === '1'; } catch (e) {}
+    abrir(abierta);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})();
+</script>
+
+<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') {
@@ -15678,7 +15761,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110703', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110704', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
