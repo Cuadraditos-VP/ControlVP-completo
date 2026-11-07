@@ -2961,8 +2961,48 @@
     --bg-jefes-tarde: #e0ddd8;
     --bg-jefes-noche: #bccbda;
   }
-  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { background: #ebe9e5; }
-  body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion { background: #d3dee8; }
+  /* Jefes: cajas con fondo blanco, como en Cabina (tarde y noche) */
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion,
+  body.modo-editable.turno-noche .seccion, body.modo-editable.turno-noche .planta .seccion + .seccion { background: #ffffff; border-color: #9a9a9a; }
+  body.modo-editable.turno-noche .seccion-titulo { border-bottom-color: #777777; }
+
+  /* Todo neutro (grises) fuera de lo que va adentro de las cajas y de los turnos de abajo */
+  body.turno-noche .planta-header { background: var(--header-red); }
+  :root { --header-blue: #4a4a4a; }
+  .app-titulo, body.turno-noche.modo-editable .app-titulo { color: #333; border-right-color: #c8c8c8; }
+  #fecha, #turno-display, body.modo-editable #fecha, body.modo-editable #turno-display,
+  body.turno-noche.modo-editable #fecha, body.turno-noche.modo-editable #turno-display { color: #2b2b2b; border-color: #c8c8c8; background: #ffffff; }
+  .fecha-linea label, .top-row-turno label, body.turno-noche .fecha-linea label, body.turno-noche .top-row-turno label,
+  body.modo-editable .fecha-linea label, body.modo-editable .top-row-turno label,
+  body.turno-noche.modo-editable .fecha-linea label, body.turno-noche.modo-editable .top-row-turno label { color: #444; }
+  .badge, .badge-cabina, .badge-jefes, .badge-original, .badge-editable,
+  body.turno-noche .badge-jefes, .badge-jefes.activa, body.turno-noche .badge-jefes.activa { background: #ffffff; color: #333; border: 1px solid #c8c8c8; }
+  .top-bar, body.turno-noche .top-bar, body.modo-editable .top-bar, body.turno-noche.modo-editable .top-bar { border-bottom-color: rgba(0,0,0,0.12); }
+
+  /* Al lado de "Aclaraciones de horarios": texto común, sin recuadro */
+  .leyenda-horarios-header .tipo-dia, .leyenda-horarios-header .tipo-dia.finde, .leyenda-horarios-header .tipo-dia.jueves {
+    background: transparent; color: inherit; padding: 0; font-weight: inherit; font-size: inherit; letter-spacing: 0;
+  }
+  .leyenda-horarios-header, body.turno-noche .leyenda-horarios-header { color: #333; }
+
+  /* Herramientas de arriba: gris oscuro si se pueden usar, gris claro si no (íconos sin color) */
+  .top-bar .btn, .top-bar .btn-save:not(.btn-save-inactivo):not(.btn-disabled), .top-bar .btn-sesion, .top-bar .btn-sesion.activa,
+  .top-bar #btnCajerosConexion, .top-bar .grupo-admin .btn, .top-bar .btn-peligro, .top-bar .btn-unlock,
+  .top-bar .btn-reg, .top-bar .btn-cierre, .top-bar .btn-hist, .top-bar .btn-full, .top-bar .btn-emp,
+  .top-bar .btn-cajeros-dia, .top-bar .btn-new, .top-bar .btn-resumen-jornada, .top-bar .btn-informe-jefes,
+  .top-bar .btn-undo, .top-bar .btn-redo {
+    background: #4a4a4a; color: #ffffff; box-shadow: none; opacity: 1; filter: grayscale(1);
+  }
+  .top-bar .btn:hover { filter: grayscale(1) brightness(0.85); }
+  .top-bar .btn:disabled, .top-bar .btn.btn-disabled, .top-bar .btn-save.btn-save-inactivo,
+  body.solo-lectura .top-bar .btn-reg, body.solo-lectura .top-bar .btn-cierre, body.solo-lectura .top-bar .btn-unlock,
+  body.solo-lectura .top-bar .btn-informe-jefes {
+    background: #c8c8c8 !important; color: #f2f2f2 !important; opacity: 0.7; filter: grayscale(1);
+  }
+  .top-bar .btn:disabled:hover, .top-bar .btn.btn-disabled:hover { filter: grayscale(1); }
+  .top-bar .fecha-flecha, .top-bar .fecha-flecha:hover:not(:disabled) { color: #444; border-color: #c8c8c8; }
+  .top-bar .fecha-flecha { background: #ececec; }
+  .top-bar .fecha-flecha:hover:not(:disabled) { background: #dddddd; }
   </style>
 </head>
 <body class="modo-original">
