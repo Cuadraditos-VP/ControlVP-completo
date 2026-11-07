@@ -2747,7 +2747,7 @@
 
 
   /* —— Barra de arriba compacta: título, fecha con flechas, turno, hoja y sesión en un renglón; botones agrupados abajo —— */
-  body { padding-top: 10px; }
+  body { padding-top: 28px; }
   .top-bar { padding: 8px 12px; margin-bottom: 12px; }
   .top-row-fecha { justify-content: flex-start; align-items: center; gap: 10px 14px; }
   .app-titulo {
@@ -3043,7 +3043,7 @@
   .leyenda-horarios {
     position: fixed; right: 12px; bottom: 6px; left: auto; z-index: 8999; margin: 0 !important; max-width: none !important;
     display: flex; align-items: center; gap: 14px; padding: 3px 10px;
-    background: rgba(255,255,255,0.85) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
+    background: #ffffff !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
   }
   .leyenda-horarios-header, body.turno-noche .leyenda-horarios-header { padding: 0 !important; white-space: nowrap; }
   .leyenda-horarios-header > span:first-child { display: none; }
@@ -3067,10 +3067,10 @@
   body.capturando-impresion .seccion { background: #ffffff !important; box-shadow: none !important; }
   body.capturando-impresion .fila.ct-bloque::before {
     background: transparent !important;
-    border-left: 1px solid var(--ct-borde, #888); border-right: 1px solid var(--ct-borde, #888);
+    border-left: 1px solid var(--ct-linea, #888); border-right: 1px solid var(--ct-linea, #888);
   }
-  body.capturando-impresion .fila.ct-bloque:not(.ct-sigue)::before { border-top: 1px solid var(--ct-borde, #888); }
-  body.capturando-impresion .fila.ct-bloque.ct-fin::before { border-bottom: 1px solid var(--ct-borde, #888); }
+  body.capturando-impresion .fila.ct-bloque:not(.ct-sigue)::before { border-top: 1px solid var(--ct-linea, #888); }
+  body.capturando-impresion .fila.ct-bloque.ct-fin::before { border-bottom: 1px solid var(--ct-linea, #888); }
   body.capturando-impresion .leyenda-codigo { background: #ffffff !important; }
   body.capturando-impresion #fecha, body.capturando-impresion #turno-display, body.capturando-impresion .badge { background: #ffffff !important; }
   /* Nunca imprimir las herramientas ni los botones de arriba */
@@ -3255,17 +3255,17 @@
   /* —— Colores CT (admin): solo CSS, sin tocar lógica de registro/gris —— */
   const LS_CT_COLORES = 'tablero_ct_colores_v3';
   const CT_COLORES_DEFAULT = {
-    'MD': { bg: '#e8f5e9', fg: '#2e7d32', fgNombre: '#2e7d32', slot: '#43a047' },
-    'MS': { bg: '#fce4e4', fg: '#b71c1c', fgNombre: '#c62828', slot: '#e53935' },
-    'T3': { bg: '#fff3e0', fg: '#e65100', fgNombre: '#e65100', slot: '#fb8c00' },
-    'T':  { bg: '#e3f2fd', fg: '#1565c0', fgNombre: '#1565c0', slot: '#1e88e5' },
-    'TE': { bg: '#f3e5f5', fg: '#6a1b9a', fgNombre: '#6a1b9a', slot: '#8e24aa' },
+    'MD': { bg: '#c2ffc6', fg: '#044809', fgNombre: '#044809', slot: '#43a047' },
+    'MS': { bg: '#ffe0e0', fg: '#bd0000', fgNombre: '#bd0000', slot: '#e53935' },
+    'T3': { bg: '#fff3a3', fg: '#662400', fgNombre: '#662400', slot: '#fb8c00' },
+    'T':  { bg: '#d6eaff', fg: '#00346b', fgNombre: '#00346b', slot: '#1565c0' },
+    'TE': { bg: '#edd1ff', fg: '#37005c', fgNombre: '#37005c', slot: '#8e24aa' },
     'TP': { bg: '#e0f7fa', fg: '#00838f', fgNombre: '#00838f', slot: '#00acc1' },
     'IN': { bg: '#fbe9e7', fg: '#d84315', fgNombre: '#d84315', slot: '#ff7043' },
-    'N':  { bg: '#e3f2fd', fg: '#1565c0', fgNombre: '#1565c0', slot: '#1e88e5' },
-    'E':  { bg: '#e8f5e9', fg: '#2e7d32', fgNombre: '#2e7d32', slot: '#43a047' },
+    'N':  { bg: '#182f49', fg: '#e6e6e6', fgNombre: '#e6e6e6', slot: '#1e88e5' },
+    'E':  { bg: '#336136', fg: '#e6e6e6', fgNombre: '#e6e6e6', slot: '#43a047' },
     'E1': { bg: '#e0f7f5', fg: '#00695c', fgNombre: '#00695c', slot: '#26a69a' },
-    'X':  { bg: '#f3e5f5', fg: '#6a1b9a', fgNombre: '#6a1b9a', slot: '#8e24aa' },
+    'X':  { bg: '#4b2b5e', fg: '#e6e6e6', fgNombre: '#e6e6e6', slot: '#8e24aa' },
     'NP': { bg: '#eceff1', fg: '#546e7a', fgNombre: '#546e7a', slot: '#78909c' }
   };
   const CT_PALETA_SUGERIDA = [
@@ -3319,6 +3319,8 @@
       // Casillero CT
       css += 'select.turno-select.' + sel + '{background:' + col.bg + ' !important;color:' + col.fg +
         ' !important;border-color:' + border + ' !important;}';
+      // Aclaraciones de horarios: mismos colores que el CT
+      css += '.leyenda-codigo.' + sel + '{background:' + col.bg + ' !important;color:' + col.fg + ' !important;border-color:' + border + ' !important;}';
       // Letra nombre: SOLO fuera de cabina-registro
       css += 'body:not(.cabina-registro) select.nombre-select.ct-letra-' + cod + '{color:' + (col.fgNombre || col.fg) + ' !important;}';
       // Grilla / HT: relleno = color planilla (relleno grilla o fondo CT)
@@ -10671,6 +10673,14 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
   function fondoFranjaCT(col) {
     return col.bg;
   }
+  /** Para imprimir sin fondo: el más oscuro entre el fondo y la letra del CT (así siempre se lee sobre blanco) */
+  function lineaImpresionCT(col) {
+    try {
+      const lum = function (h) { const c = _parseHexCT(h); return c.r * 0.299 + c.g * 0.587 + c.b * 0.114; };
+      const a = col.bg, b = col.fgNombre || col.fg;
+      return lum(a) < lum(b) ? a : b;
+    } catch (e) { return col.fgNombre || col.fg; }
+  }
   /** Recuadros: marca las filas vacías (se ven más bajitas). */
   function marcarFilasVacias() {
     try {
@@ -10697,17 +10707,18 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
             f.classList.remove('ct-sigue');
             selT.style.removeProperty('background');
             const colV = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(v) : null;
-            if (colV) { f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(colV)); }
+            if (colV) { f.style.setProperty('--ct-borde', colV.fgNombre || colV.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(colV)); f.style.setProperty('--ct-linea', lineaImpresionCT(colV)); }
           } else if (ctActual && !f.classList.contains('fila-vacia')) {
             f.classList.add('ct-bloque', 'ct-sigue');
             const col = (typeof colorCTEfectivo === 'function') ? colorCTEfectivo(ctActual) : null;
-            if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(col)); }
+            if (col) { f.style.setProperty('--ct-borde', col.fgNombre || col.fg); f.style.setProperty('--ct-fondo', fondoFranjaCT(col)); f.style.setProperty('--ct-linea', lineaImpresionCT(col)); }
           } else {
             ctActual = '';
             f.classList.remove('ct-bloque', 'ct-sigue');
             selT.style.removeProperty('background');
             f.style.removeProperty('--ct-borde');
             f.style.removeProperty('--ct-fondo');
+            f.style.removeProperty('--ct-linea');
           }
         });
         // Última fila de cada bloque: deja el margen de abajo como antes
@@ -14663,9 +14674,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       const datos = originales.map(function (sel) {
         const cs = getComputedStyle(sel);
         const opt = sel.options[sel.selectedIndex];
+        const filaSel = sel.closest('.fila');
+        const linea = (opts.ahorroTinta && filaSel) ? String(getComputedStyle(filaSel).getPropertyValue('--ct-linea') || '').trim() : '';
         return {
           txt: opt ? String(opt.textContent || '').replace(/\s*[✓✗✕✖]\s*$/, '').trim() : '',
-          color: cs.color, bg: cs.backgroundColor, fs: cs.fontSize, fw: cs.fontWeight, ff: cs.fontFamily,
+          color: linea || cs.color, bg: cs.backgroundColor, fs: cs.fontSize, fw: cs.fontWeight, ff: cs.fontFamily,
           pad: cs.padding, ta: cs.textAlign, w: sel.getBoundingClientRect().width, h: sel.getBoundingClientRect().height
         };
       });
@@ -15988,7 +16001,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110710', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110711', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
