@@ -1935,6 +1935,24 @@
       background: #fff;
       font-weight: 700;
     }
+    /* Bloques de CT como en las cajas: el CT una sola vez, estirado sobre sus nombres, con el color del CT */
+    .timeline-table tbody tr.tl-ct-bloque td.col-turno,
+    .timeline-table tbody tr.tl-ct-bloque td.col-nombre {
+      background: var(--ct-fondo, #fff);
+      border-bottom-color: var(--ct-fondo, #fff);
+    }
+    .timeline-table tbody tr.tl-ct-bloque td.col-turno {
+      color: var(--ct-letra, #222);
+      vertical-align: middle;
+      font-weight: 800;
+      border-right-color: var(--ct-fondo, #fff);
+      box-shadow: inset 0 3px 0 #fff, inset 0 -3px 0 #fff, inset 4px 0 0 #fff;
+    }
+    .timeline-table tbody tr.tl-ct-bloque td.col-nombre .nombre-click { color: var(--ct-nombre, #222); }
+    .timeline-table tbody tr.tl-ct-bloque td.col-nombre .nombre-click:hover { background: transparent; }
+    .timeline-table tbody tr.tl-ct-ini td.col-nombre { box-shadow: inset 0 3px 0 #fff; }
+    .timeline-table tbody tr.tl-ct-fin td.col-nombre { box-shadow: inset 0 -3px 0 #fff; border-bottom-color: #e0d6c4; }
+    .timeline-table tbody tr.tl-ct-ini.tl-ct-fin td.col-nombre { box-shadow: inset 0 3px 0 #fff, inset 0 -3px 0 #fff; }
     .timeline-table tbody td.col-nombre .nombre-con-borrar {
       display: flex;
       align-items: center;
@@ -3346,21 +3364,30 @@
     _refrescarRellenosGrillaAbierta();
   }
 
+  /** Grilla: colores del bloque de CT (fondo, letra del CT y de los nombres), iguales a los de las cajas */
+  function _aplicarColorBloqueGrilla(tr, te) {
+    try {
+      const col = colorCTEfectivo(te);
+      tr.style.setProperty('--ct-fondo', fondoFranjaCT(col));
+      tr.style.setProperty('--ct-letra', col.fg);
+      tr.style.setProperty('--ct-nombre', col.fgNombre || col.fg);
+    } catch (e) {}
+  }
+
   function _refrescarRellenosGrillaAbierta() {
     try {
       document.querySelectorAll('.timeline-table td.col-slot.on').forEach(function (td) {
         const tr = td.closest('tr');
-        if (!tr) return;
-        const tdT = tr.querySelector('.col-turno');
-        const te = tdT ? String(tdT.textContent || '').trim().toUpperCase() : '';
+        const te = tr ? String(tr.dataset.te || '').trim().toUpperCase() : '';
         if (!te) return;
         td.style.setProperty('background', colorHexRellenoGrillaPorTurno(te), 'important');
       });
-      document.querySelectorAll('.timeline-table .col-turno, .timeline-table .nombre-click').forEach(function (el) {
+      document.querySelectorAll('.timeline-table tr.tl-ct-bloque').forEach(function (tr) {
+        if (tr.dataset.te) _aplicarColorBloqueGrilla(tr, tr.dataset.te);
+      });
+      document.querySelectorAll('.timeline-table tr:not(.tl-ct-bloque) .col-turno, .timeline-table tr:not(.tl-ct-bloque) .nombre-click').forEach(function (el) {
         const tr = el.closest('tr');
-        if (!tr) return;
-        const tdT = tr.querySelector('.col-turno');
-        const te = tdT ? String(tdT.textContent || '').trim().toUpperCase() : '';
+        const te = tr ? String(tr.dataset.te || '').trim().toUpperCase() : '';
         if (!te) return;
         el.style.color = colorHexNombrePorTurno(te);
       });
@@ -7764,6 +7791,22 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       trSec.appendChild(tdSec);
       tbody.appendChild(trSec);
 
+      // Bloques de CT como en las cajas: el CT se muestra una vez y abarca las filas que lo heredan.
+      // Una fila con CT propio, o una fila sin nombre en el medio, empieza un bloque nuevo.
+      const bloquesCT = {};
+      (function () {
+        let actual = null;
+        let corte = true;
+        (sec.filas || []).forEach(function (f, i) {
+          if (!(f.nombre || '').trim()) { corte = true; return; }
+          const teB = String(turnoEfectivoFila(sec, i) || '').trim().toUpperCase();
+          if (!actual || corte || (f.turno || '').trim() || actual.te !== teB) actual = { te: teB, filas: [] };
+          actual.filas.push(i);
+          bloquesCT[i] = actual;
+          corte = false;
+        });
+      })();
+
       (sec.filas || []).forEach((fila, fIdx) => {
         const nombre = (fila.nombre || '').trim();
         if (!nombre) return;
@@ -7778,15 +7821,38 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         const tr = document.createElement('tr');
         tr.dataset.sIdx = String(sIdx);
         tr.dataset.fIdx = String(fIdx);
+        tr.dataset.te = String(te || '').trim().toUpperCase();
+        const bloque = bloquesCT[fIdx] || { te: '', filas: [fIdx] };
+        const conBloque = !!bloque.te;
+        const iniBloque = bloque.filas[0] === fIdx;
+        const finBloque = bloque.filas[bloque.filas.length - 1] === fIdx;
+        if (conBloque) {
+          tr.classList.add('tl-ct-bloque');
+          if (iniBloque) tr.classList.add('tl-ct-ini');
+          if (finBloque) tr.classList.add('tl-ct-fin');
+          _aplicarColorBloqueGrilla(tr, bloque.te);
+        }
         const tdT = document.createElement('td');
         tdT.className = 'col-turno';
         tdT.textContent = te || '';
-        tdT.style.color = hexNombre;
         tdT.style.cursor = 'pointer';
+        if (conBloque) {
+          tdT.rowSpan = bloque.filas.length;
+        } else {
+          tdT.style.color = hexNombre;
+        }
         tdT.title = 'Doble clic: copiar horario a la fila de abajo';
         tdT.addEventListener('dblclick', function(e) {
           e.preventDefault();
           e.stopPropagation();
+          // Con el CT estirado sobre varias filas: se copia la fila a la altura del doble clic
+          let fIdx = bloque.filas[0];
+          bloque.filas.forEach(function (idxB) {
+            const trB = tbody.querySelector('tr[data-s-idx="' + sIdx + '"][data-f-idx="' + idxB + '"]');
+            if (!trB) return;
+            const r = trB.getBoundingClientRect();
+            if (e.clientY >= r.top && e.clientY < r.bottom) fIdx = idxB;
+          });
           if (!editable || (typeof puedeEditarHorariosAhora === 'function' && !puedeEditarHorariosAhora())) return;
           const dataRef = editableData || originalData;
           if (!dataRef || !dataRef.plantas) return;
@@ -7833,7 +7899,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           }
           if (wrap._actualizarSumaSeccion) wrap._actualizarSumaSeccion(sIdx);
         });
-        tr.appendChild(tdT);
+        if (!conBloque || iniBloque) tr.appendChild(tdT);
 
         const tdN = document.createElement('td');
         tdN.className = 'col-nombre';
@@ -7842,7 +7908,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         const nomSpan = document.createElement('span');
         nomSpan.className = 'nombre-click';
         nomSpan.textContent = nombre;
-        nomSpan.style.color = hexNombre;
+        if (!conBloque) nomSpan.style.color = hexNombre;
         nomSpan.title = 'Ver horario de ' + nombre;
         nomSpan.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -16001,7 +16067,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110711', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110712', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
