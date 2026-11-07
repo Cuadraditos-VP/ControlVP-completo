@@ -3096,6 +3096,14 @@
   body.capturando-impresion #fecha, body.capturando-impresion #turno-display, body.capturando-impresion .badge { background: #ffffff !important; }
   /* Nunca imprimir las herramientas ni los botones de arriba */
   @media print { .controles, .sesion-zona, #btnHerramientas, #cvp-tablero-estado { display: none !important; } }
+  /* Cajas pegadas en cada columna (sin espacio entre una y otra) */
+  .planta { gap: 0; }
+  .planta .seccion + .seccion, body.modo-editable .planta .seccion + .seccion,
+  body.modo-editable.turno-noche .planta .seccion + .seccion { border-top: none; }
+  body.modo-editable .seccion, body.modo-editable .planta .seccion + .seccion { box-shadow: none; }
+  /* Títulos de las cajas con un color claro según el turno: TARDE durazno, NOCHE celeste */
+  .seccion-titulo, body.modo-editable .seccion-titulo { background: #f6e4d8 !important; }
+  body.turno-noche .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo { background: #dbe7f3 !important; }
   </style>
 </head>
 <body class="modo-original">
@@ -16170,7 +16178,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110719', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110720', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
