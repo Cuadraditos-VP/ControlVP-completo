@@ -3034,6 +3034,8 @@
   #turno-display, .top-row-turno #turno-display { height: 58px; font-size: 1.35rem; width: 120px; }
   .top-row-turno .badge { height: 58px; font-size: 1.35rem; min-width: 120px; padding-left: 14px; padding-right: 14px; white-space: nowrap; }
   .sesion-zona { flex-shrink: 0; }
+  .fecha-linea, .fecha-nav, .fecha-con-cal, #fecha, .top-row-turno, .app-titulo { flex-shrink: 0; }
+  .top-bar .sesion-zona .btn-sesion { padding: 6px 12px; min-width: 54px; }
   .top-bar .sesion-zona .btn { min-height: 58px; min-width: 54px; font-size: 1.3rem; }
   .top-bar .sesion-zona .btn-sesion { font-size: 1.15rem; padding: 6px 16px; }
 
@@ -3049,6 +3051,15 @@
   .leyenda-horarios-body { padding: 0 !important; flex-wrap: wrap; justify-content: flex-end; }
   .leyenda-item { white-space: nowrap; }
   body { padding-bottom: 52px; }
+
+  /* Imprimir = foto de la pantalla (mismas proporciones) */
+  #print-img { display: none; }
+  body.capturando-tablero .fila.ct-bloque::before, body.capturando-tablero .fila.ct-bloque::after { right: 8px !important; }
+  @media print {
+    body.imprimiendo-imagen { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+    body.imprimiendo-imagen > *:not(#print-img) { display: none !important; }
+    body.imprimiendo-imagen #print-img { display: block !important; visibility: visible !important; width: 100%; height: auto; max-height: 195mm; object-fit: contain; margin: 0 auto; }
+  }
   </style>
 </head>
 <body class="modo-original">
@@ -11112,9 +11123,18 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         document.body.classList.add('cabina-registro');
       } else {
         badge.textContent = 'CABINA';
+        badge.title = '';
         badge.className = 'badge badge-cabina';
         document.body.classList.remove('cabina-registro');
       }
+      // Etiqueta corta (solo CABINA / JEFES); el detalle queda al pasar el mouse
+      (function () {
+        const full = String(badge.textContent || '');
+        const corto = full.indexOf('JEFES') === 0 ? 'JEFES' : 'CABINA';
+        if (full !== corto) badge.title = full + (badge.title ? ' — ' + badge.title : '');
+        else if (!badge.title) badge.title = '';
+        badge.textContent = corto;
+      })();
       document.getElementById('fecha').value = originalData.fecha;
       document.getElementById('turno-display').value = originalData.turno;
       aplicarEstiloTurno(originalData.turno);
@@ -11126,6 +11146,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     } else {
       if (cierreFinalActivo) {
         badge.textContent = 'JEFES (CERRADO)';
+        badge.title = '';
         badge.className = 'badge badge-jefes';
       } else if (originalBloqueado) {
         const noHabil = window.cvpTablero && !cvpTablero.diaHabilitado(editableData && editableData.fecha || originalData && originalData.fecha || '');
@@ -11137,6 +11158,14 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         badge.className = 'badge badge-jefes';
         badge.title = 'Registrá desde Cabina para poder modificar esta hoja';
       }
+      // Etiqueta corta (solo CABINA / JEFES); el detalle queda al pasar el mouse
+      (function () {
+        const full = String(badge.textContent || '');
+        const corto = full.indexOf('JEFES') === 0 ? 'JEFES' : 'CABINA';
+        if (full !== corto) badge.title = full + (badge.title ? ' — ' + badge.title : '');
+        else if (!badge.title) badge.title = '';
+        badge.textContent = corto;
+      })();
       document.body.classList.remove('cabina-registro');
       if (!editableData) editableData = JSON.parse(JSON.stringify(originalData));
       document.getElementById('fecha').value = editableData.fecha;
@@ -12322,9 +12351,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       }
     }
     if (btn) {
-      btn.textContent = (sesionActual && sesionActual.user)
-        ? ((sesionActual.esAdmin ? '👑 ' : '👤 ') + sesionActual.user)
-        : '👤 Entrar';
+      btn.textContent = (sesionActual && sesionActual.user && sesionActual.esAdmin) ? '👑' : '👤';
       btn.classList.toggle('activa', !!(sesionActual && sesionActual.user));
       btn.title = (sesionActual && sesionActual.user)
         ? ('Sesión: ' + sesionActual.user + ' (clic para gestionar)')
@@ -14595,8 +14622,101 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     }
   }
 
-  function imprimirHojaActual() {
-    // Imprime la hoja visible (Cabina o Jefes) con el mismo formato de impresión
+  /**
+   * Foto del tablero tal como se ve en pantalla (fecha, turno, las tres plantas y las aclaraciones).
+   * Imprimir y compartir usan esta foto, así salen con las mismas proporciones que la pantalla.
+   * cb(canvas) si sale bien; fallo() si no se pudo (sin internet para la herramienta de captura, etc.).
+   */
+  function capturarTableroComoEnPantalla(cb, fallo) {
+    const plantas = document.getElementById('plantas');
+    if (!plantas) { fallo && fallo(); return; }
+    let listo = false;
+    const timer = setTimeout(function () { if (!listo) { listo = true; fallo && fallo(); } }, 15000);
+    const s = document.createElement('script');
+    function conH(fn) {
+      if (window.html2canvas) { fn(window.html2canvas); return; }
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onload = function () { fn(window.html2canvas); };
+      s.onerror = function () { if (!listo) { listo = true; clearTimeout(timer); fallo && fallo(); } };
+      document.head.appendChild(s);
+    }
+    conH(function (html2canvas) {
+      const originales = Array.from(document.querySelectorAll('#plantas select'));
+      const datos = originales.map(function (sel) {
+        const cs = getComputedStyle(sel);
+        const opt = sel.options[sel.selectedIndex];
+        return {
+          txt: opt ? String(opt.textContent || '').replace(/\s*[✓✗✕✖]\s*$/, '').trim() : '',
+          color: cs.color, bg: cs.backgroundColor, fs: cs.fontSize, fw: cs.fontWeight, ff: cs.fontFamily,
+          pad: cs.padding, ta: cs.textAlign, w: sel.getBoundingClientRect().width, h: sel.getBoundingClientRect().height
+        };
+      });
+      const datosCajas = ['fecha', 'turno-display'].map(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return { id: id, txt: '', css: '' };
+        const cs = getComputedStyle(el), rr = el.getBoundingClientRect();
+        return { id: id, txt: el.value || '', css: 'width:' + rr.width + 'px;height:' + rr.height + 'px;color:' + cs.color +
+          ';background:' + cs.backgroundColor + ';border:' + cs.border + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight +
+          ';font-family:' + cs.fontFamily + ';padding:0 ' + cs.paddingRight };
+      });
+      const r = plantas.getBoundingClientRect();
+      const ancho = document.documentElement.clientWidth;
+      const alto = Math.ceil(r.bottom + window.scrollY + 70);
+      // Mientras se saca la foto: sin los botones "−", los bloques de color llegan hasta el borde
+      document.body.classList.add('capturando-tablero');
+      const sacarClase = function () { document.body.classList.remove('capturando-tablero'); };
+      html2canvas(document.body, {
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+        scale: 2, useCORS: true, logging: false,
+        x: 0, y: 0, width: ancho, height: alto, windowWidth: ancho, scrollX: 0, scrollY: -window.scrollY,
+        onclone: function (doc) {
+          doc.querySelectorAll('.controles, .sesion-zona, #cvp-tablero-estado, .btn-quitar-fila, .seccion-botones, .btn-resumen-caja, ' +
+            '.hit-revelar, .modal-overlay, #combo-flotante, .panel-cajeros-dia, .resumen-modal-overlay, #timelineOverlay, .hint-expand, .fecha-flecha')
+            .forEach(function (el) { el.style.display = 'none'; });
+          const tb = doc.querySelector('.top-bar');
+          if (tb) { tb.style.position = 'static'; tb.style.boxShadow = 'none'; }
+          const ley = doc.getElementById('leyenda-horarios');
+          if (ley) {
+            ley.style.position = 'static'; ley.style.left = 'auto'; ley.style.right = 'auto';
+            ley.style.margin = '14px auto 0'; ley.style.boxShadow = 'none'; ley.style.background = 'transparent';
+            ley.style.justifyContent = 'flex-start'; ley.style.width = r.width + 'px';
+          }
+          // Fecha y turno: como texto centrado (las cajas de texto salen corridas en la foto)
+          datosCajas.forEach(function (d) {
+            const el = doc.getElementById(d.id);
+            if (!el) return;
+            const dv = doc.createElement('div');
+            dv.textContent = d.txt;
+            dv.style.cssText = d.css + ';display:flex;align-items:center;justify-content:center;box-sizing:border-box;white-space:nowrap;';
+            el.parentNode.replaceChild(dv, el);
+          });
+          // Los desplegables se reemplazan por texto con el mismo aspecto (así se ven nombres y CT)
+          Array.from(doc.querySelectorAll('#plantas select')).forEach(function (sel, i) {
+            const d = datos[i];
+            if (!d) return;
+            const sp = doc.createElement('div');
+            sp.textContent = d.txt;
+            sp.style.cssText = 'box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;' +
+              'width:' + d.w + 'px;height:' + d.h + 'px;color:' + d.color + ';background:' + d.bg + ';font-size:' + d.fs + ';font-weight:' + d.fw +
+              ';font-family:' + d.ff + ';padding:' + d.pad + ';justify-content:' + (d.ta === 'center' ? 'center' : 'flex-start') + ';';
+            sel.parentNode.replaceChild(sp, sel);
+          });
+        }
+      }).then(function (canvas) {
+        sacarClase();
+        if (listo) return;
+        listo = true; clearTimeout(timer);
+        cb(canvas);
+      }).catch(function () {
+        sacarClase();
+        if (listo) return;
+        listo = true; clearTimeout(timer);
+        fallo && fallo();
+      });
+    });
+  }
+
+  function imprimirHojaActualFormatoViejo() {
     document.body.classList.add('imprimiendo-cabina');
     setTimeout(function () {
       window.print();
@@ -14605,10 +14725,57 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       }, 400);
     }, 150);
   }
-  /** Compatibilidad */
+
+  function imprimirHojaActual() {
+    // Imprime la hoja visible (Cabina o Jefes) tal como se ve en pantalla
+    capturarTableroComoEnPantalla(function (canvas) {
+      let img = document.getElementById('print-img');
+      if (!img) { img = document.createElement('img'); img.id = 'print-img'; img.alt = ''; document.body.appendChild(img); }
+      img.onload = function () {
+        document.body.classList.add('imprimiendo-imagen');
+        setTimeout(function () {
+          window.print();
+          setTimeout(function () {
+            document.body.classList.remove('imprimiendo-imagen');
+            img.removeAttribute('src');
+          }, 400);
+        }, 100);
+      };
+      img.src = canvas.toDataURL('image/png');
+    }, imprimirHojaActualFormatoViejo);
+  }
   function imprimirCabina() { imprimirHojaActual(); }
 
   function compartirHojaActual() {
+    capturarTableroComoEnPantalla(function (canvas) {
+      const hoja = (modo === 'editable') ? 'JEFES' : 'CABINA';
+      const turnoTxt = (document.getElementById('turno-display') && document.getElementById('turno-display').value) || '';
+      const fechaTxt = (document.getElementById('fecha') && document.getElementById('fecha').value) || '';
+      const nombre = ('tablero-' + hoja + '-' + turnoTxt + '-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')).replace(/[^\w\-]+/g, '_');
+      canvas.toBlob(async function (blob) {
+        if (!blob) { compartirHojaActualArmada(); return; }
+        const file = new File([blob], nombre + '.png', { type: 'image/png' });
+        if (navigator.share) {
+          try {
+            if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: hoja + ' ' + turnoTxt, text: fechaTxt + ' · ' + hoja + ' · ' + turnoTxt });
+              return;
+            }
+          } catch (e) { if (e && e.name === 'AbortError') return; }
+        }
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = nombre + '.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+        } catch (e2) { alert('No se pudo compartir ni descargar la imagen.'); }
+      }, 'image/png');
+    }, compartirHojaActualArmada);
+  }
+
+  /** Respaldo: imagen armada desde los datos (si no se pudo sacar la foto de la pantalla) */
+  function compartirHojaActualArmada() {
     // Imagen desde DATOS (no clone de selects: así se ven nombres y códigos)
     let data = null;
     try {
@@ -15802,7 +15969,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110707', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110709', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
