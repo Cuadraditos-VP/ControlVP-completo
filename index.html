@@ -3034,6 +3034,8 @@
   #turno-display, .top-row-turno #turno-display { height: 58px; font-size: 1.35rem; width: 120px; }
   .top-row-turno .badge { height: 58px; font-size: 1.35rem; min-width: 120px; padding-left: 14px; padding-right: 14px; white-space: nowrap; }
   .sesion-zona { flex-shrink: 0; }
+  .fecha-linea, .fecha-nav, .fecha-con-cal, #fecha, .top-row-turno, .app-titulo { flex-shrink: 0; }
+  .top-bar .sesion-zona .btn-sesion { padding: 6px 12px; min-width: 54px; }
   .top-bar .sesion-zona .btn { min-height: 58px; min-width: 54px; font-size: 1.3rem; }
   .top-bar .sesion-zona .btn-sesion { font-size: 1.15rem; padding: 6px 16px; }
 
@@ -11121,9 +11123,18 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         document.body.classList.add('cabina-registro');
       } else {
         badge.textContent = 'CABINA';
+        badge.title = '';
         badge.className = 'badge badge-cabina';
         document.body.classList.remove('cabina-registro');
       }
+      // Etiqueta corta (solo CABINA / JEFES); el detalle queda al pasar el mouse
+      (function () {
+        const full = String(badge.textContent || '');
+        const corto = full.indexOf('JEFES') === 0 ? 'JEFES' : 'CABINA';
+        if (full !== corto) badge.title = full + (badge.title ? ' — ' + badge.title : '');
+        else if (!badge.title) badge.title = '';
+        badge.textContent = corto;
+      })();
       document.getElementById('fecha').value = originalData.fecha;
       document.getElementById('turno-display').value = originalData.turno;
       aplicarEstiloTurno(originalData.turno);
@@ -11135,6 +11146,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     } else {
       if (cierreFinalActivo) {
         badge.textContent = 'JEFES (CERRADO)';
+        badge.title = '';
         badge.className = 'badge badge-jefes';
       } else if (originalBloqueado) {
         const noHabil = window.cvpTablero && !cvpTablero.diaHabilitado(editableData && editableData.fecha || originalData && originalData.fecha || '');
@@ -11146,6 +11158,14 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         badge.className = 'badge badge-jefes';
         badge.title = 'Registrá desde Cabina para poder modificar esta hoja';
       }
+      // Etiqueta corta (solo CABINA / JEFES); el detalle queda al pasar el mouse
+      (function () {
+        const full = String(badge.textContent || '');
+        const corto = full.indexOf('JEFES') === 0 ? 'JEFES' : 'CABINA';
+        if (full !== corto) badge.title = full + (badge.title ? ' — ' + badge.title : '');
+        else if (!badge.title) badge.title = '';
+        badge.textContent = corto;
+      })();
       document.body.classList.remove('cabina-registro');
       if (!editableData) editableData = JSON.parse(JSON.stringify(originalData));
       document.getElementById('fecha').value = editableData.fecha;
@@ -12331,9 +12351,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       }
     }
     if (btn) {
-      btn.textContent = (sesionActual && sesionActual.user)
-        ? ((sesionActual.esAdmin ? '👑 ' : '👤 ') + sesionActual.user)
-        : '👤 Entrar';
+      btn.textContent = (sesionActual && sesionActual.user && sesionActual.esAdmin) ? '👑' : '👤';
       btn.classList.toggle('activa', !!(sesionActual && sesionActual.user));
       btn.title = (sesionActual && sesionActual.user)
         ? ('Sesión: ' + sesionActual.user + ' (clic para gestionar)')
@@ -15951,7 +15969,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110708', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110709', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
