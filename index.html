@@ -3023,6 +3023,32 @@
   .top-bar .fecha-flecha, .top-bar .fecha-flecha:hover:not(:disabled) { color: #444; border-color: #c8c8c8; }
   .top-bar .fecha-flecha { background: #ececec; }
   .top-bar .fecha-flecha:hover:not(:disabled) { background: #dddddd; }
+
+  /* Barra de títulos de arriba más alta */
+  .top-bar { padding-top: 12px; padding-bottom: 12px; }
+  .app-titulo { font-size: 1.4rem; }
+  .top-row-fecha { flex-wrap: nowrap; }
+  .fecha-linea, .fecha-nav, .fecha-con-cal { min-width: 0; }
+  #fecha { height: 58px; font-size: 1.4rem; min-width: 0; }
+  .fecha-flecha { width: 46px; font-size: 1.1rem; }
+  #turno-display, .top-row-turno #turno-display { height: 58px; font-size: 1.35rem; width: 120px; }
+  .top-row-turno .badge { height: 58px; font-size: 1.35rem; min-width: 120px; padding-left: 14px; padding-right: 14px; white-space: nowrap; }
+  .sesion-zona { flex-shrink: 0; }
+  .top-bar .sesion-zona .btn { min-height: 58px; min-width: 54px; font-size: 1.3rem; }
+  .top-bar .sesion-zona .btn-sesion { font-size: 1.15rem; padding: 6px 16px; }
+
+  /* Aclaraciones de horarios: fijas abajo, en el renglón del cartel de conexión */
+  .leyenda-horarios {
+    position: fixed; right: 12px; bottom: 6px; left: auto; z-index: 8999; margin: 0 !important; max-width: none !important;
+    display: flex; align-items: center; gap: 14px; padding: 3px 10px;
+    background: rgba(255,255,255,0.85) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
+  }
+  .leyenda-horarios-header, body.turno-noche .leyenda-horarios-header { padding: 0 !important; white-space: nowrap; }
+  .leyenda-horarios-header > span:first-child { display: none; }
+  .leyenda-horarios-header .tipo-dia { font-weight: 700; }
+  .leyenda-horarios-body { padding: 0 !important; flex-wrap: wrap; justify-content: flex-end; }
+  .leyenda-item { white-space: nowrap; }
+  body { padding-bottom: 52px; }
   </style>
 </head>
 <body class="modo-original">
@@ -15752,6 +15778,23 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
 </script>
 
 <script>
+/* Aclaraciones de horarios: empiezan a la derecha del cartel de conexión (mismo renglón, sin pisarse) */
+(function () {
+  function acomodar() {
+    const l = document.getElementById('leyenda-horarios');
+    const e = document.getElementById('cvp-tablero-estado');
+    if (!l) return;
+    const izq = e ? Math.ceil(e.getBoundingClientRect().right) + 10 : 12;
+    l.style.left = izq + 'px';
+    l.style.justifyContent = 'flex-end';
+  }
+  setInterval(acomodar, 1000);
+  window.addEventListener('resize', acomodar);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', acomodar); else acomodar();
+})();
+</script>
+
+<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') {
@@ -15759,7 +15802,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110705', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110707', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
