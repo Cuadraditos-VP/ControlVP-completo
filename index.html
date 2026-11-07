@@ -1222,6 +1222,10 @@
     #combo-flotante .combo-item.activo {
       background: #e8f0fe;
     }
+    /* Ítem con fondo de su CT: el resaltado va como recuadro (el fondo es el del CT) */
+    #combo-flotante .combo-item.con-fondo-ct { border-bottom-color: #ffffff; }
+    #combo-flotante .combo-item.con-fondo-ct:hover,
+    #combo-flotante .combo-item.con-fondo-ct.activo { box-shadow: inset 0 0 0 3px #8ab4f8; }
     #combo-flotante .combo-item.ya-prog {
       color: #9e9e9e !important;
       font-style: italic;
@@ -9465,6 +9469,19 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       div.textContent = it.label;
       div.title = (it.value || '') + (it.codProg ? (' · prog ' + it.codProg) : '');
       if (it.color) div.style.color = it.color;
+      // Programados del turno con CT de letra clara (N, E, X…): en la lista blanca no se leen,
+      // así que se muestran sobre el fondo de su CT, como en las cajas
+      if (it.codProg && !it.yaProg) {
+        try {
+          const colCT = colorCTEfectivo(it.codProg);
+          const rgb = _parseHexCT(colCT.fgNombre || colCT.fg);
+          if ((rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 160) {
+            div.style.background = colCT.bg;
+            div.style.color = colCT.fgNombre || colCT.fg;
+            div.classList.add('con-fondo-ct');
+          }
+        } catch (eCT) {}
+      }
       if (it.fontWeight) div.style.fontWeight = it.fontWeight;
       if (it.fontStyle) div.style.fontStyle = it.fontStyle;
       if (!it.fontWeight && !it.yaProg) div.style.fontWeight = '700';
@@ -16118,7 +16135,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110714', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110715', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
