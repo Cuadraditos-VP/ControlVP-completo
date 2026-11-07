@@ -3112,6 +3112,11 @@
   .planta .seccion + .seccion .seccion-titulo {
     background: transparent !important; border: none !important; padding-left: 2px; padding-right: 2px;
   }
+  /* Renglón del título más alto y letra más grande; el título apoyado sobre su caja (no centrado) */
+  .seccion-titulo, body.turno-noche .seccion-titulo,
+  body.modo-editable .seccion-titulo, body.modo-editable.turno-noche .seccion-titulo {
+    height: 50px; font-size: 1.1rem; align-items: flex-end; padding-bottom: 5px;
+  }
   .seccion .filas { background: #ffffff; border: 1px solid #6e6e6e; }
   body.modo-editable .seccion .filas { border-color: #9a9a9a; }
   </style>
@@ -16188,7 +16193,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026110721', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026110722', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
