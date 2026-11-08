@@ -4157,8 +4157,15 @@
         actualizarProgDesdeCajeros();
       }
     }, 300);
-    setInterval(function () { if (!document.hidden) actualizarProgDesdeCajeros(); }, 3 * 60 * 1000);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) actualizarProgDesdeCajeros(); });
+    // Programación de Cajeros: se vuelve a pedir como mucho cada 30 minutos (cuida el cupo diario de Firebase)
+    let progUltimoPedido = Date.now();
+    function progRefrescarSiHaceRato() {
+      if (document.hidden || Date.now() - progUltimoPedido < 30 * 60 * 1000) return;
+      progUltimoPedido = Date.now();
+      actualizarProgDesdeCajeros();
+    }
+    setInterval(progRefrescarSiHaceRato, 60 * 1000);
+    document.addEventListener('visibilitychange', progRefrescarSiHaceRato);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarProgCajeros);
   else setTimeout(iniciarProgCajeros, 0);
@@ -15701,6 +15708,8 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
   let offset = 0;                 // hora del servidor - hora de esta PC (ms)
   let bajadaInicialOk = false;    // no se sube nada hasta haber traído lo que hay en Firebase
   let ocupado = false, otraVez = false, timerPronto = null;
+  let ultimaSync = 0;              // última vez que se consultó Firebase
+  let pausaHasta = 0;              // Firebase sin cupo: no se insiste hasta esta hora
   const estado = { conectado: false, ok: null, error: '', pendientes: 0, ultimo: 0 };
 
   /** Id del documento para una fecha del tablero: AAAA-MM-DD */
@@ -15939,6 +15948,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
   }
   async function vueltaSync() {
     ocupado = true;
+    ultimaSync = Date.now();
     try {
       const tok = await token();
       estado.conectado = !!tok;
@@ -15951,7 +15961,10 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       estado.pendientes = 0;
     } catch (e) {
       estado.ok = false;
-      estado.error = (e && (e.status === 403 || e.status === 401)) ? 'sin permiso' : 'sin conexión';
+      estado.error = (e && (e.status === 403 || e.status === 401)) ? 'sin permiso'
+        : (e && e.status === 429) ? 'sin cupo' : 'sin conexión';
+      if (e && e.status === 429) pausaHasta = Date.now() + 60 * 60 * 1000;   // se reintenta en 1 hora
+      estado.detalle = (e && e.status) ? 'HTTP ' + e.status : String((e && e.message) || e || '').slice(0, 60);
       try { estado.pendientes = bajadaInicialOk ? fechasPendientes().length : 0; } catch (e2) {}
       console.warn('Tablero compartido:', e);
     } finally {
@@ -16052,7 +16065,9 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     let txt, color;
     if (!estado.conectado) { txt = 'Sin compartir: esta PC no está conectada a Cajeros (🔗)'; color = '#757575'; }
     else if (estado.ok === false) {
-      txt = (estado.error === 'sin permiso' ? 'Sin permiso para compartir' : 'Sin conexión') +
+      txt = (estado.error === 'sin permiso' ? 'Sin permiso para compartir'
+        : estado.error === 'sin cupo' ? 'Firebase sin cupo por hoy (se renueva de madrugada)'
+        : 'Sin conexión' + (estado.detalle ? ' (' + estado.detalle + ')' : '')) +
         (estado.pendientes ? ' · ' + estado.pendientes + ' día(s) por mandar' : '') + ' — se sigue guardando en esta PC';
       color = '#b71c1c';
     } else if (estado.ok) { txt = '☁ Compartido'; color = '#2e7d32'; }
@@ -16099,7 +16114,10 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
   function revisarHorario() {
     try {
       const h = diaHabilitado((editableData && editableData.fecha) || (originalData && originalData.fecha) || '');
-      if (habilAnt !== null && h !== habilAnt && !(typeof cambiosSinGuardar !== 'undefined' && cambiosSinGuardar)) mostrarVista(modo);
+      if (habilAnt !== null && h !== habilAnt) {
+        sincronizar();   // a las 04:00 se traen los cambios de la otra PC
+        if (!(typeof cambiosSinGuardar !== 'undefined' && cambiosSinGuardar)) mostrarVista(modo);
+      }
       habilAnt = h;
     } catch (e) {}
   }
@@ -16108,10 +16126,15 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     pintarEstado();
     sincronizar();
     setInterval(revisarHorario, 10000);
-    setInterval(function () { if (!document.hidden) sincronizar(); }, 10000);
-    setInterval(function () { if (document.hidden) sincronizar(); }, 60000);
+    // Firebase se consulta poco: al abrir, al guardar, a las 04:00, al volver a la ventana
+    // (si pasaron 5 min) y cada 30 min con la ventana a la vista. Minimizada no consulta.
+    function syncSiHaceRato(min) {
+      if (document.hidden || Date.now() < pausaHasta) return;
+      if (Date.now() - ultimaSync >= min * 60 * 1000) sincronizar();
+    }
+    setInterval(function () { syncSiHaceRato(30); }, 60 * 1000);
     window.addEventListener('online', pronto);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) pronto(); });
+    document.addEventListener('visibilitychange', function () { syncSiHaceRato(5); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(arrancar, 1500); });
   else setTimeout(arrancar, 1500);
