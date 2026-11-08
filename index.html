@@ -3183,7 +3183,7 @@
       <div class="grupo-btns">
         <button class="btn btn-full" onclick="imprimirHojaActual()" title="Imprimir hoja actual (Cabina o Jefes)">🖨</button>
         <button class="btn btn-full" onclick="compartirHojaActual()" title="Compartir hoja actual como imagen">📤</button>
-        <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa">⛶</button>
+        <button class="btn btn-full" onclick="toggleFullscreen()" title="Pantalla Completa (Ctrl+F)">⛶</button>
       </div>
       <div class="grupo-btns grupo-admin">
         <button class="btn btn-hist btn-respaldo-admin" id="btnColoresCT" onclick="abrirPanelColoresCT()" title="Colores de CT (admin)" style="display:none">🎨</button>
@@ -15183,6 +15183,14 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
       document.exitFullscreen();
     }
   }
+  // Ctrl+F (o Cmd+F en Mac): entra / sale de pantalla completa
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && String(e.key || '').toLowerCase() === 'f') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  }, true);
+
   
   window.addEventListener('beforeunload', function (e) {
     if (!cambiosSinGuardar) return;
