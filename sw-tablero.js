@@ -1,5 +1,5 @@
 /* Service worker Control VP — subí CACHE_VERSION en cada actualización */
-const CACHE_VERSION = 'controlvp-2026111102';
+const CACHE_VERSION = 'controlvp-2026111103';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icono-jefes.png'];
 
 self.addEventListener('install', (e) => {
