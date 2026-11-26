@@ -7146,9 +7146,9 @@
     ucCerrarLista();
     const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
     if (d && h && !d.value && !h.value) {
-      const per = periodoLiquidacionHE();
-      d.value = _ucFechaISO(per.desde);
-      h.value = _ucFechaISO(per.hasta);
+      const r = _ucRangoUnMes(new Date());
+      d.value = _ucFechaISO(r.desde);
+      h.value = _ucFechaISO(r.hasta);
     }
     panel.classList.add('visible');
     const inp = document.getElementById('uc-persona');
@@ -7237,18 +7237,28 @@
     const box = document.getElementById('panel-cajas-cajero-box');
     if (box) box.classList.toggle('maximizado');
   }
+  /** Del mismo día del mes anterior hasta la fecha dada (ej. 26/10 → 26/11) */
+  function _ucRangoUnMes(hasta) {
+    const h = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+    const d = new Date(h.getFullYear(), h.getMonth() - 1, h.getDate());
+    // 31/03 → 31/02 no existe: queda en el último día de febrero
+    if (d.getDate() !== h.getDate()) d.setDate(0);
+    return { desde: d, hasta: h };
+  }
+  /** Hoy: último mes hasta hoy · ◀ ▶: corre todo el rango un mes */
   function periodoCajasPorCajero(delta) {
     const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
     if (!d || !h) return;
-    let ref;
-    if (delta === 0) ref = new Date();
+    let r;
+    if (delta === 0) r = _ucRangoUnMes(new Date());
     else {
       const base = _ucDeISO(h.value) || new Date();
-      ref = new Date(base.getFullYear(), base.getMonth() + delta, 15);
+      const nueva = new Date(base.getFullYear(), base.getMonth() + delta, base.getDate());
+      if (nueva.getDate() !== base.getDate()) nueva.setDate(0);
+      r = _ucRangoUnMes(nueva);
     }
-    const per = periodoLiquidacionHE(ref);
-    d.value = _ucFechaISO(per.desde);
-    h.value = _ucFechaISO(per.hasta);
+    d.value = _ucFechaISO(r.desde);
+    h.value = _ucFechaISO(r.hasta);
     buscarCajasPorCajero();
   }
   function elegirPersonaUC(nombre) {
@@ -7293,7 +7303,7 @@
     let html = '<p style="margin:4px 0 8px;font-weight:800;color:#5c4033;font-size:0.9rem">' + _ucEsc(obj.mostrar) +
       (obj.legajo ? '' : ' <span style="font-weight:600;color:#c62828;font-size:0.75rem">(sin legajo: se busca por nombre)</span>') + '</p>';
     html += '<div class="rank-wrap"><table><thead><tr>' +
-      '<th>Fecha</th><th>CT</th><th title="Código de caja">CJ</th><th title="Salida temprano">⏱</th><th>Nota</th>' +
+      '<th>Fecha</th><th>CT</th><th title="Código de caja">CJ</th><th>Nota</th>' +
       '</tr></thead><tbody>';
     let mesPrev = '';
     r.filas.forEach(function (f) {
@@ -7310,7 +7320,6 @@
         '<td style="font-variant-numeric:tabular-nums">' + _ucEsc(f.fecha) + '</td>' +
         '<td style="font-weight:800;' + colCt + '">' + (f.ct ? _ucEsc(f.ct) : '—') + '</td>' +
         '<td style="font-weight:800;' + colCt + '" title="' + _ucEsc(f.sector) + '">' + caja + '</td>' +
-        '<td style="text-align:center">' + (f.temprano ? '⏱' : '') + '</td>' +
         '<td style="white-space:normal;max-width:260px;font-size:0.72rem;' + est + '">' + _ucEsc(f.nota) + '</td>' +
         '</tr>';
     });
@@ -7330,7 +7339,7 @@
       html += '<p style="color:#666;font-size:0.8rem;margin:0">No figura en ninguna caja de las hojas guardadas de este período.</p>';
     }
     html += '<p style="margin-top:10px;font-size:0.72rem;color:#888;max-width:460px">' +
-      'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). <b>CJ</b> = código de caja. ⏱ = salida temprano.<br>' +
+      'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). <b>CJ</b> = código de caja.<br>' +
       'CJ: Castito A (PA) · E (PI) · B (PB) · PF · VF · VTE · VTB. Caja Central y Poker no tienen CJ.</p>';
     body.innerHTML = html;
   }
@@ -16912,9 +16921,9 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
         <label style="display:flex;align-items:center;gap:4px">Hasta
           <input type="date" id="uc-hasta" style="padding:4px;border:2px solid #c9b99a" onchange="buscarCajasPorCajero()"></label>
         <span style="display:flex;gap:4px">
-          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Período 26→25 anterior" onclick="event.stopPropagation();periodoCajasPorCajero(-1)">◀</button>
-          <button type="button" class="btn" style="min-width:auto;min-height:30px;padding:3px 10px;background:#6a1b9a;font-size:0.78rem" title="Período 26→25 vigente" onclick="event.stopPropagation();periodoCajasPorCajero(0)">Hoy</button>
-          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Período 26→25 siguiente" onclick="event.stopPropagation();periodoCajasPorCajero(1)">▶</button>
+          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un mes antes" onclick="event.stopPropagation();periodoCajasPorCajero(-1)">◀</button>
+          <button type="button" class="btn" style="min-width:auto;min-height:30px;padding:3px 10px;background:#6a1b9a;font-size:0.78rem" title="Último mes hasta hoy" onclick="event.stopPropagation();periodoCajasPorCajero(0)">Hoy</button>
+          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un mes después" onclick="event.stopPropagation();periodoCajasPorCajero(1)">▶</button>
         </span>
         <button type="submit" class="btn" style="min-width:auto;min-height:30px;padding:3px 12px;background:#1565c0;font-size:0.8rem">Buscar</button>
       </form>
@@ -17512,7 +17521,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026112602', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026112604', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
