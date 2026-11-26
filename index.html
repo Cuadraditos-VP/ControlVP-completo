@@ -6390,7 +6390,8 @@
       const tu = (meta && meta.turno) || (data && data.turno) || '';
       return String(f).trim() + '|' + String(tu).trim().toUpperCase();
     }
-    function procesar(data, meta) {
+    // contarDias: la hoja Jefes cuenta los días trabajados; Cabina solo aporta las marcas ⏱
+    function procesar(data, meta, contarDias) {
       if (!data || !data.plantas) return;
       const kDia = claveDia(meta, data);
       (data.plantas || []).forEach(function (pl) {
@@ -6400,6 +6401,7 @@
           (sec.filas || []).forEach(function (f) {
             const nom = (f && f.nombre || '').trim();
             if (!nom) return;
+            if (!contarDias && !f.temprano) return;
             if (!stats[nom]) stats[nom] = { dias: new Set(), temprano: new Set(), fechasTemprano: [] };
             stats[nom].dias.add(kDia);
             if (f.temprano) {
@@ -6416,8 +6418,11 @@
     }
     (historial || []).forEach(function (reg) {
       const meta = { fecha: reg.fecha, turno: reg.turno };
-      // Solo hoja JEFES (editable). No Cabina ni pestaña Novedades (ya filtrada en procesar).
-      if (reg.editable) procesar(reg.editable, meta);
+      // Días trabajados: hoja JEFES (editable). Novedades / Caja Central quedan afuera en procesar.
+      if (reg.editable) procesar(reg.editable, meta, true);
+      // Marcas ⏱: hoy las pone el cierre final en la hoja CABINA (original); las fechas
+      // viejas las tienen en Jefes (marca a mano), que ya se leyeron arriba.
+      if (reg.original && reg.original !== reg.editable) procesar(reg.original, meta, false);
     });
     return stats;
   }
@@ -7689,7 +7694,7 @@
       return a.nom.localeCompare(b.nom, 'es');
     });
     if (!rows.length) {
-      body.innerHTML = '<p style="color:#666;padding:8px 0;font-size:0.85rem">No hay salidas temprano en el <b>historial</b>.<br>Marcá en Jefes (doble clic) y <b>guardá</b> para que cuente.</p>';
+      body.innerHTML = '<p style="color:#666;padding:8px 0;font-size:0.85rem">No hay salidas temprano en el <b>historial</b>.<br>Se marcan solas al hacer el <b>cierre final</b> de la fecha.</p>';
     } else {
       let html = '<table><thead><tr>' +
         '<th class="num">#</th><th>Cajero</th><th class="num">ET</th><th class="num">Días</th><th class="num">%</th>' +
@@ -7706,7 +7711,7 @@
       });
       html += '</tbody></table>';
       html = '<div class="rank-wrap">' + html + '</div>' +
-        '<p style="margin-top:10px;font-size:0.75rem;color:#888;max-width:280px">Solo historial · Jefes (sin Novedades/Caja Central). Hover = fechas ET.</p>';
+        '<p style="margin-top:10px;font-size:0.75rem;color:#888;max-width:280px">Solo historial · ET del cierre final (Cabina) · días según Jefes (sin Novedades/Caja Central). Hover = fechas ET.</p>';
       body.innerHTML = html;
     }
     const box = document.getElementById('panel-ranking-temprano-box');
@@ -17521,7 +17526,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026112604', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026112605', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
