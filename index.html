@@ -974,10 +974,11 @@
       user-select: none;
       box-shadow: 0 1px 3px rgba(69,90,100,0.35);
     }
-    /* Código de caja (E1, PF2…) chiquito al lado del cajero, solo en la hoja CABINA */
+    /* CJ (código de caja: E1, PF2…) chiquito al lado del cajero, solo en la hoja CABINA */
     .marca-caja-cod {
       flex-shrink: 0;
       margin-left: 4px;
+      margin-right: 16px;
       font-size: 0.68rem;
       font-weight: 700;
       color: #7a6a55;
@@ -6934,7 +6935,7 @@
           if (!sp) return;
           const x = nums[i];
           sp.textContent = x ? pref + x.num : '';
-          sp.title = x ? 'Caja ' + x.ct + ' ' + pref + x.num : '';
+          sp.title = x ? 'CJ ' + x.ct + ' ' + pref + x.num : '';
         });
       });
     } catch (e) { console.warn('codigos caja', e); }
@@ -7077,6 +7078,16 @@
     return { legajo: null, nombreNorm: q, mostrar: t };
   }
 
+  /** Fondo y letra del CT (los mismos colores de 🎨 que en las cajas) */
+  function _ucEstiloCT(ct) {
+    const c = String(ct || '').trim().toUpperCase();
+    if (!c) return '';
+    try {
+      const col = colorCTEfectivo(c);
+      return 'background:' + col.bg + ';color:' + (col.fgNombre || col.fg) + ';';
+    } catch (e) { return ''; }
+  }
+
   /** Filas del registro de la persona entre dos fechas (inclusive) */
   function calcularCajasPorCajero(obj, desde, hasta) {
     const hojas = _ucHojasPorDia();
@@ -7131,8 +7142,8 @@
   function abrirPanelCajasPorCajero() {
     const panel = document.getElementById('panel-cajas-cajero');
     if (!panel) return;
-    const dl = document.getElementById('uc-lista-nombres');
-    if (dl) dl.innerHTML = _ucCandidatos().map(function (n) { return '<option value="' + _ucEsc(n) + '"></option>'; }).join('');
+    window._ucCands = _ucCandidatos();
+    ucCerrarLista();
     const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
     if (d && h && !d.value && !h.value) {
       const per = periodoLiquidacionHE();
@@ -7144,7 +7155,81 @@
     if (inp) setTimeout(function () { inp.focus(); inp.select(); }, 30);
     if (inp && inp.value.trim()) buscarCajasPorCajero();
   }
+  /* —— Buscador de cajero: ↑ ↓ pasan al anterior / siguiente, ▼ despliega la lista —— */
+  function _ucCandsActuales() {
+    if (!window._ucCands) window._ucCands = _ucCandidatos();
+    return window._ucCands;
+  }
+  function ucListaAbierta() {
+    const l = document.getElementById('uc-lista');
+    return !!(l && l.style.display !== 'none');
+  }
+  function ucCerrarLista() {
+    const l = document.getElementById('uc-lista');
+    if (l) l.style.display = 'none';
+  }
+  /** Muestra la lista; con filtrar=true solo los que coinciden con lo escrito */
+  function ucFiltrarLista(filtrar) {
+    const l = document.getElementById('uc-lista');
+    const inp = document.getElementById('uc-persona');
+    if (!l || !inp) return;
+    const todos = _ucCandsActuales();
+    const q = _ucNorm(inp.value);
+    const exacto = todos.indexOf(inp.value.trim()) >= 0;
+    const lista = (filtrar && q && !exacto) ? todos.filter(function (n) { return _ucNorm(n).indexOf(q) >= 0; }) : todos;
+    if (!lista.length) { ucCerrarLista(); return; }
+    l.innerHTML = lista.map(function (n) {
+      const sel = n === inp.value.trim();
+      return '<div class="uc-op" data-n="' + _ucEsc(n) + '" style="padding:3px 8px;cursor:pointer;white-space:nowrap;' +
+        (sel ? 'background:#5c4033;color:#fff;font-weight:700' : '') + '" ' +
+        'onmousedown="event.preventDefault()" onclick="event.stopPropagation();ucElegir(this.getAttribute(\'data-n\'))">' + _ucEsc(n) + '</div>';
+    }).join('');
+    l.style.display = 'block';
+    const elSel = l.querySelector('.uc-op[style*="#5c4033"]');
+    if (elSel) elSel.scrollIntoView({ block: 'nearest' });
+  }
+  function ucToggleLista() {
+    if (ucListaAbierta()) { ucCerrarLista(); return; }
+    ucFiltrarLista(false);
+    const inp = document.getElementById('uc-persona');
+    if (inp) inp.focus();
+  }
+  function ucElegir(nombre) {
+    const inp = document.getElementById('uc-persona');
+    if (inp) inp.value = nombre;
+    ucCerrarLista();
+    buscarCajasPorCajero();
+  }
+  function ucTeclaPersona(e) {
+    const inp = e.target;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const todos = _ucCandsActuales();
+      if (!todos.length) return;
+      // Si lo escrito es parcial, se recorre solo entre los que coinciden
+      const q = _ucNorm(inp.value);
+      const exacto = todos.indexOf(inp.value.trim());
+      const lista = (q && exacto < 0) ? todos.filter(function (n) { return _ucNorm(n).indexOf(q) >= 0; }) : todos;
+      if (!lista.length) return;
+      let i = lista.indexOf(inp.value.trim());
+      if (i < 0) i = (e.key === 'ArrowDown') ? 0 : lista.length - 1;
+      else i = (i + (e.key === 'ArrowDown' ? 1 : -1) + lista.length) % lista.length;
+      inp.value = lista[i];
+      buscarCajasPorCajero();
+      if (ucListaAbierta()) ucFiltrarLista(false);
+      return;
+    }
+    if (e.key === 'Escape' && ucListaAbierta()) {
+      e.preventDefault();
+      e.stopPropagation();
+      ucCerrarLista();
+      return;
+    }
+    if (e.key === 'Enter') ucCerrarLista();
+  }
+
   function cerrarPanelCajasPorCajero() {
+    ucCerrarLista();
     const p = document.getElementById('panel-cajas-cajero');
     if (p) p.classList.remove('visible');
   }
@@ -7208,7 +7293,7 @@
     let html = '<p style="margin:4px 0 8px;font-weight:800;color:#5c4033;font-size:0.9rem">' + _ucEsc(obj.mostrar) +
       (obj.legajo ? '' : ' <span style="font-weight:600;color:#c62828;font-size:0.75rem">(sin legajo: se busca por nombre)</span>') + '</p>';
     html += '<div class="rank-wrap"><table><thead><tr>' +
-      '<th>Fecha</th><th>Turno</th><th>CT</th><th>Caja</th><th title="Salida temprano">⏱</th><th>Nota</th>' +
+      '<th>Fecha</th><th>CT</th><th title="Código de caja">CJ</th><th title="Salida temprano">⏱</th><th>Nota</th>' +
       '</tr></thead><tbody>';
     let mesPrev = '';
     r.filas.forEach(function (f) {
@@ -7218,13 +7303,13 @@
       const finde = /^(sáb|dom)/.test(f.fecha) ? 'background:#faf6ee;' : '';
       const est = estiloTipo[f.tipo] || '';
       const caja = f.codigo
-        ? '<b>' + _ucEsc(f.codigo) + '</b>'
-        : (f.sector ? '<span style="color:#888" title="Sector sin código de caja">' + _ucEsc(f.sector) + '</span>' : '—');
+        ? _ucEsc(f.codigo)
+        : (f.sector ? '<span style="font-weight:400;opacity:0.75" title="Sector sin código de caja">' + _ucEsc(f.sector) + '</span>' : '—');
+      const colCt = _ucEstiloCT(f.ct);
       html += '<tr style="' + sepMes + finde + '">' +
         '<td style="font-variant-numeric:tabular-nums">' + _ucEsc(f.fecha) + '</td>' +
-        '<td>' + (f.turno ? _ucEsc(f.turno) : '—') + '</td>' +
-        '<td><b>' + (f.ct ? _ucEsc(f.ct) : '—') + '</b></td>' +
-        '<td title="' + _ucEsc(f.sector) + '">' + caja + '</td>' +
+        '<td style="font-weight:800;' + colCt + '">' + (f.ct ? _ucEsc(f.ct) : '—') + '</td>' +
+        '<td style="font-weight:800;' + colCt + '" title="' + _ucEsc(f.sector) + '">' + caja + '</td>' +
         '<td style="text-align:center">' + (f.temprano ? '⏱' : '') + '</td>' +
         '<td style="white-space:normal;max-width:260px;font-size:0.72rem;' + est + '">' + _ucEsc(f.nota) + '</td>' +
         '</tr>';
@@ -7235,16 +7320,18 @@
     const total = claves.reduce(function (s, k) { return s + r.resumen[k]; }, 0);
     html += '<p style="font-weight:800;color:#5c4033;margin:12px 0 4px;font-size:0.85rem">Resumen del período</p>';
     if (claves.length) {
-      html += '<div class="rank-wrap"><table><thead><tr><th>Caja</th><th class="num">Turnos</th></tr></thead><tbody>' +
-        claves.map(function (k) { return '<tr><td>' + _ucEsc(k) + '</td><td class="num">' + r.resumen[k] + '</td></tr>'; }).join('') +
+      html += '<div class="rank-wrap"><table><thead><tr><th>CT · CJ</th><th class="num">Veces</th></tr></thead><tbody>' +
+        claves.map(function (k) {
+          return '<tr><td style="font-weight:800;' + _ucEstiloCT(k.split(' ')[0]) + '">' + _ucEsc(k) + '</td><td class="num">' + r.resumen[k] + '</td></tr>';
+        }).join('') +
         '<tr style="font-weight:800;background:#f0e9dc"><td>TOTAL</td><td class="num">' + total + '</td></tr>' +
         '</tbody></table></div>';
     } else {
       html += '<p style="color:#666;font-size:0.8rem;margin:0">No figura en ninguna caja de las hojas guardadas de este período.</p>';
     }
     html += '<p style="margin-top:10px;font-size:0.72rem;color:#888;max-width:460px">' +
-      'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). ⏱ = salida temprano.<br>' +
-      'Cajas: Castito A (PA) · E (PI) · B (PB) · PF · VF · VTE · VTB. Caja Central y Poker no tienen código.</p>';
+      'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). <b>CJ</b> = código de caja. ⏱ = salida temprano.<br>' +
+      'CJ: Castito A (PA) · E (PI) · B (PB) · PF · VF · VTE · VTB. Caja Central y Poker no tienen CJ.</p>';
     body.innerHTML = html;
   }
 
@@ -7258,7 +7345,8 @@
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Cajas por cajero</title>' +
       '<style>body{font-family:Segoe UI,system-ui,sans-serif;color:#1f1a14;margin:18px}' +
       'table{border-collapse:collapse;font-size:12px;margin-bottom:10px}th,td{border:1px solid #ccc;padding:3px 7px;text-align:left;vertical-align:top}' +
-      'th{background:#f0e9dc}td.num,th.num{text-align:right}h2{margin:0 0 4px;font-size:16px}</style></head><body>' +
+      'th{background:#f0e9dc}td.num,th.num{text-align:right}h2{margin:0 0 4px;font-size:16px}' +
+      '*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
       '<h2>Cajas por cajero</h2><div style="font-size:12px;margin-bottom:8px">Período: ' + f(u.desde) + ' al ' + f(u.hasta) + '</div>' +
       body.innerHTML + '</body></html>');
     w.document.close();
@@ -16794,7 +16882,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     <div class="panel-ranking-body" id="panel-auditoria-body" style="padding:10px 12px;width:100%"></div>
   </div>
 </div>
-<div id="panel-cajas-cajero" class="panel-cajeros-dia" onmousedown="this._fondo=(event.target===this)" onclick="if(event.target===this&&this._fondo)cerrarPanelCajasPorCajero()">
+<div id="panel-cajas-cajero" class="panel-cajeros-dia" onmousedown="this._fondo=(event.target===this);if(!event.target.closest('#uc-lista,#uc-btn-lista'))ucCerrarLista()" onclick="if(event.target===this&&this._fondo)cerrarPanelCajasPorCajero()">
   <div class="panel-ranking-box" id="panel-cajas-cajero-box" style="min-width:min(520px,96vw)">
     <div class="panel-cajeros-dia-header">
       <span>📍 Cajas por cajero</span>
@@ -16807,12 +16895,18 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     <div class="panel-ranking-body">
       <form style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:2px 0 10px;font-size:0.82rem;color:#5c4033"
         onsubmit="event.preventDefault();buscarCajasPorCajero()">
-        <label style="display:flex;align-items:center;gap:4px">Cajero
-          <input type="text" id="uc-persona" list="uc-lista-nombres" placeholder="Nombre o legajo" autocomplete="off"
-            style="width:220px;padding:5px 7px;border:2px solid #c9b99a;font-size:0.88rem;background:#fffdf8"
-            oninput="if(this.list&&[].some.call(this.list.options,function(o){return o.value===this.value},this))buscarCajasPorCajero()">
-        </label>
-        <datalist id="uc-lista-nombres"></datalist>
+        <span style="display:flex;align-items:center;gap:4px">Cajero
+          <span style="position:relative;display:flex">
+            <input type="text" id="uc-persona" placeholder="Nombre o legajo" autocomplete="off"
+              title="↑ ↓ cambian de cajero · ▼ despliega la lista"
+              style="width:220px;padding:5px 7px;border:2px solid #c9b99a;border-right:none;font-size:0.88rem;background:#fffdf8"
+              onkeydown="ucTeclaPersona(event)" oninput="ucFiltrarLista(true)">
+            <button type="button" class="btn" id="uc-btn-lista" title="Desplegar la lista de cajeros"
+              style="min-width:28px;min-height:0;padding:0 6px;background:#8a7355;font-size:0.75rem"
+              onmousedown="event.preventDefault()" onclick="event.stopPropagation();ucToggleLista()">▼</button>
+            <div id="uc-lista" style="display:none;position:absolute;top:100%;left:0;z-index:20;width:260px;max-height:280px;overflow:auto;background:#fffdf8;border:2px solid #8a7355;box-shadow:0 8px 20px rgba(0,0,0,0.2);font-size:0.82rem"></div>
+          </span>
+        </span>
         <label style="display:flex;align-items:center;gap:4px">Desde
           <input type="date" id="uc-desde" style="padding:4px;border:2px solid #c9b99a" onchange="buscarCajasPorCajero()"></label>
         <label style="display:flex;align-items:center;gap:4px">Hasta
@@ -17418,7 +17512,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026112601', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026112602', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
