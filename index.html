@@ -974,6 +974,18 @@
       user-select: none;
       box-shadow: 0 1px 3px rgba(69,90,100,0.35);
     }
+    /* Código de caja (E1, PF2…) chiquito al lado del cajero, solo en la hoja CABINA */
+    .marca-caja-cod {
+      flex-shrink: 0;
+      margin-left: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #7a6a55;
+      white-space: nowrap;
+      user-select: none;
+      cursor: default;
+    }
+    .marca-caja-cod:empty { display: none; }
     /* Texto chiquito junto al ⇄ en CABINA: a qué caja pasó según Jefes (o que no estuvo) */
     .marca-cambio-destino {
       flex-shrink: 0;
@@ -6816,12 +6828,122 @@
   }
 
   /* ===================================================================
+   * CÓDIGO DE CAJA: prefijo del sector + número dentro de su CT.
+   *   Castito: A (Planta Alta), E (Intermedia), B (Planta Baja)
+   *   Pago de fichas: PF · Venta de fichas: VF
+   *   Venta de tickets: VTE (Intermedia), VTB (Planta Baja)
+   *   Caja Central, Poker y Novedades: sin código.
+   * Número: en la hoja de Cabina, dentro de cada sector, el primer cajero de MD es 1, el
+   * segundo 2, y así por cada CT (una fila sin CT toma el de arriba y sigue la numeración).
+   * En Jefes se respeta el número que dio Cabina a esa fila; si la fila es nueva o cambió
+   * de CT, toma el número siguiente al más alto de ese CT en el sector (no se repiten).
+   * Como sale del orden de las filas, sirve también para los días ya guardados.
+   * =================================================================== */
+  const CAJA_PREFIJOS = {
+    'PLANTA ALTA': { 'CASTITO': 'A', 'PAGO DE FICHAS': 'PF', 'VENTA DE FICHAS': 'VF' },
+    'PLANTA INTERMEDIA': { 'CASTITO': 'E', 'VENTA DE TICKETS': 'VTE' },
+    'PLANTA BAJA': { 'CASTITO': 'B', 'VENTA DE TICKETS': 'VTB' }
+  };
+  function prefijoCaja(nombrePlanta, tituloSeccion) {
+    const p = String(limpiarNombrePlanta(nombrePlanta || '') || '').trim().toUpperCase();
+    const t = String(tituloSeccion || '').trim().toUpperCase();
+    return (CAJA_PREFIJOS[p] && CAJA_PREFIJOS[p][t]) || '';
+  }
+  function _cajaNombre(f) {
+    const n = (typeof normalizarNombreCelda === 'function') ? normalizarNombreCelda(f && f.nombre) : String((f && f.nombre) || '').trim();
+    return n;
+  }
+  /** Números de Cabina de una sección: [ { ct, num } | null ] por fila */
+  function _numerosCajaCabina(filas) {
+    const cuenta = {};
+    let ultimoCt = '';
+    return (filas || []).map(function (f) {
+      const ctFila = String((f && f.turno) || '').trim().toUpperCase();
+      if (ctFila) ultimoCt = ctFila;
+      const ct = ctFila || ultimoCt;
+      if (!ct || !_cajaNombre(f)) return null;
+      cuenta[ct] = (cuenta[ct] || 0) + 1;
+      return { ct: ct, num: cuenta[ct] };
+    });
+  }
+  /**
+   * Códigos de caja de una hoja (Jefes, respetando a Cabina).
+   * Devuelve { 'pIdx|sIdx|fIdx': { ct, num, prefijo, codigo } } para las filas con cajero.
+   */
+  function codigosCajaHoja(dataJefes, dataCabina) {
+    const out = {};
+    if (!dataJefes || !dataJefes.plantas) return out;
+    dataJefes.plantas.forEach(function (p, pIdx) {
+      (p.secciones || []).forEach(function (sec, sIdx) {
+        const pref = prefijoCaja(p.nombre, sec.titulo);
+        if (!pref) return;
+        let numsCab = [];
+        if (dataCabina && dataCabina !== dataJefes) {
+          const secC = _obtenerSeccionPorTitulo(dataCabina, pIdx, sIdx, sec.titulo);
+          if (secC) numsCab = _numerosCajaCabina(secC.filas);
+        }
+        const maximo = {};
+        numsCab.forEach(function (x) { if (x) maximo[x.ct] = Math.max(maximo[x.ct] || 0, x.num); });
+        const usados = {};
+        const pendientes = [];
+        let ultimoCt = '';
+        const filas = sec.filas || [];
+        const propios = (dataCabina && dataCabina !== dataJefes) ? null : _numerosCajaCabina(filas);
+        filas.forEach(function (f, fIdx) {
+          const ctFila = String((f && f.turno) || '').trim().toUpperCase();
+          if (ctFila) ultimoCt = ctFila;
+          const ct = ctFila || ultimoCt;
+          if (!ct || !_cajaNombre(f)) return;
+          let num = 0;
+          if (propios) {
+            num = propios[fIdx] ? propios[fIdx].num : 0;
+          } else {
+            const c = numsCab[fIdx];
+            if (c && c.ct === ct && !(usados[ct] && usados[ct][c.num])) num = c.num;
+          }
+          if (!num) { pendientes.push({ fIdx: fIdx, ct: ct }); return; }
+          (usados[ct] = usados[ct] || {})[num] = true;
+          maximo[ct] = Math.max(maximo[ct] || 0, num);
+          out[pIdx + '|' + sIdx + '|' + fIdx] = { ct: ct, num: num, prefijo: pref, codigo: pref + num };
+        });
+        pendientes.forEach(function (x) {
+          const num = (maximo[x.ct] || 0) + 1;
+          maximo[x.ct] = num;
+          out[pIdx + '|' + sIdx + '|' + x.fIdx] = { ct: x.ct, num: num, prefijo: pref, codigo: pref + num };
+        });
+      });
+    });
+    return out;
+  }
+
+  /** Hoja Cabina en pantalla: pone el código chiquito al lado de cada cajero (se recalcula al editar). */
+  function actualizarCodigosCajaCabina() {
+    try {
+      document.querySelectorAll('#plantas .seccion[data-caja-pref]').forEach(function (secEl) {
+        const pref = secEl.getAttribute('data-caja-pref');
+        const filas = [];
+        const spans = [];
+        secEl.querySelectorAll('.fila').forEach(function (f) {
+          const selT = f.querySelector('.turno-select');
+          const selN = f.querySelector('.nombre-select');
+          filas.push({ turno: selT ? selT.value : '', nombre: selN ? selN.value : '' });
+          spans.push(f.querySelector('.marca-caja-cod'));
+        });
+        const nums = _numerosCajaCabina(filas);
+        spans.forEach(function (sp, i) {
+          if (!sp) return;
+          const x = nums[i];
+          sp.textContent = x ? pref + x.num : '';
+          sp.title = x ? 'Caja ' + x.ct + ' ' + pref + x.num : '';
+        });
+      });
+    } catch (e) { console.warn('codigos caja', e); }
+  }
+
+  /* ===================================================================
    * 📍 CAJAS POR CAJERO: en qué caja estuvo un cajero cada día de un período.
-   * Sale del historial (hojas guardadas, también las que llegan de otras PCs) y de la
-   * hoja abierta si todavía no se guardó. Caja = la de JEFES (lo que pasó de verdad);
-   * se avisa si Cabina lo había puesto en otra. CT = el de la fila en Jefes (o el del
-   * bloque de arriba), comparado con la programación de Cajeros del día.
-   * Lo ven Cabina y el admin.
+   * Sale de la hoja JEFES de cada fecha guardada en el historial (también las que llegan
+   * de otras PCs) y de la hoja abierta si todavía no se guardó. Lo ven Cabina y el admin.
    * =================================================================== */
   function _ucNorm(s) {
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -6882,15 +7004,16 @@
     return !!obj.nombreNorm && _ucNombreSinLeg(nom) === obj.nombreNorm;
   }
 
-  /** Dónde aparece la persona en una hoja: { cajas: [{ planta, caja, etiqueta, ct }], novedades: [nota] } */
-  function _ucUbicaciones(data, obj) {
+  /** Dónde estuvo la persona en una hoja Jefes: { cajas: [{ ct, codigo, sector, temprano }], novedades: [nota] } */
+  function _ucUbicaciones(dataJefes, dataCabina, obj) {
     const res = { cajas: [], novedades: [] };
-    if (!data || !data.plantas) return res;
-    data.plantas.forEach(function (p) {
-      (p.secciones || []).forEach(function (sec) {
+    if (!dataJefes || !dataJefes.plantas) return res;
+    const codigos = codigosCajaHoja(dataJefes, dataCabina);
+    dataJefes.plantas.forEach(function (p, pIdx) {
+      (p.secciones || []).forEach(function (sec, sIdx) {
         const tit = String(sec.titulo || '').trim().toUpperCase();
         let ultimoCt = '';
-        (sec.filas || []).forEach(function (f) {
+        (sec.filas || []).forEach(function (f, fIdx) {
           const ctFila = String((f && f.turno) || '').trim().toUpperCase();
           if (ctFila) ultimoCt = ctFila;
           if (!f || !_ucCoincide(f.nombre, obj)) return;
@@ -6898,14 +7021,12 @@
             res.novedades.push(String(f.nota || '').trim());
             return;
           }
-          const etiqueta = tituloSeccionCorto(sec.titulo) + ' ' + abreviarPlanta(p.nombre);
-          const ya = res.cajas.find(function (c) { return c.etiqueta === etiqueta; });
-          if (ya) return;
+          const c = codigos[pIdx + '|' + sIdx + '|' + fIdx];
           res.cajas.push({
-            planta: limpiarNombrePlanta(p.nombre),
-            caja: tituloSeccionCorto(sec.titulo),
-            etiqueta: etiqueta,
-            ct: ctFila || ultimoCt
+            ct: c ? c.ct : (ctFila || ultimoCt),
+            codigo: c ? c.codigo : '',
+            sector: tituloSeccionCorto(sec.titulo) + ' ' + abreviarPlanta(p.nombre),
+            temprano: !!f.temprano
           });
         });
       });
@@ -6913,7 +7034,7 @@
     return res;
   }
 
-  /** Lista de nombres para el buscador (programación de Cajeros + lista de empleados) */
+  /** Lista de nombres para el buscador (lista de empleados + programación de Cajeros) */
   function _ucCandidatos() {
     const porClave = {};
     function agregar(nom) {
@@ -6935,43 +7056,32 @@
       .sort(function (a, b) { return a.localeCompare(b, 'es', { sensitivity: 'base' }); });
   }
 
-  /** Texto del buscador → { legajo, nombreNorm, mostrar } o { opciones: [...] } si hay varias o ninguna */
+  /** Texto del buscador → { legajo, nombreNorm, mostrar } o { opciones: [...] } si coinciden varios */
   function _ucResolverPersona(texto) {
     const t = String(texto || '').trim();
     if (!t) return null;
     const cands = _ucCandidatos();
-    let leg = extraerLegajo(t) || (/^\d{4,}$/.test(t) ? t : null);
+    const leg = extraerLegajo(t) || (/^\d{4,}$/.test(t) ? t : null);
     if (leg) {
       const c = cands.find(function (x) { return extraerLegajo(x) === leg; });
       return { legajo: leg, nombreNorm: c ? _ucNombreSinLeg(c) : (/^\d+$/.test(t) ? '' : _ucNombreSinLeg(t)), mostrar: c || t };
     }
     const q = _ucNorm(t);
     const exactos = cands.filter(function (x) { return _ucNombreSinLeg(x) === q; });
-    if (exactos.length === 1) {
-      return { legajo: extraerLegajo(exactos[0]), nombreNorm: q, mostrar: exactos[0] };
-    }
+    if (exactos.length === 1) return { legajo: extraerLegajo(exactos[0]), nombreNorm: q, mostrar: exactos[0] };
     const parciales = cands.filter(function (x) { return _ucNorm(x).indexOf(q) >= 0; });
     if (parciales.length === 1) {
       return { legajo: extraerLegajo(parciales[0]), nombreNorm: _ucNombreSinLeg(parciales[0]), mostrar: parciales[0] };
     }
     if (parciales.length > 1) return { opciones: parciales };
-    // No está en las listas: buscar igual por el nombre tal cual figura en las hojas
     return { legajo: null, nombreNorm: q, mostrar: t };
   }
 
-  function _ucTextoCodigoProg(cod) {
-    if (!cod) return '';
-    if (cod === 'F') return 'Franco';
-    if (cod === 'LAO') return 'Licencia (LAO)';
-    if (cod === 'LIC') return 'Licencia';
-    return 'programado ' + cod;
-  }
-
-  /** Arma las filas del registro para la persona entre dos fechas (inclusive) */
+  /** Filas del registro de la persona entre dos fechas (inclusive) */
   function calcularCajasPorCajero(obj, desde, hasta) {
     const hojas = _ucHojasPorDia();
     const filas = [];
-    const resumen = {}; // etiqueta → cantidad de turnos
+    const resumen = {}; // 'CT código' → turnos
     const diasNom = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
     const cur = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
     const fin = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
@@ -6980,45 +7090,38 @@
       const k = _ucFechaISO(cur);
       const fechaTxt = diasNom[cur.getDay()] + ' ' + String(cur.getDate()).padStart(2, '0') + '/' +
         String(cur.getMonth() + 1).padStart(2, '0') + '/' + cur.getFullYear();
-      let prog = '';
-      try {
-        if (obj.legajo && hayProgMes(cur.getMonth(), cur.getFullYear())) {
-          prog = codigoProgDelDia(obj.legajo, cur.getDate(), cur.getMonth(), cur.getFullYear());
-        }
-      } catch (e) {}
       const delDia = hojas[k] || {};
       const turnos = ['TARDE', 'NOCHE'].filter(function (t) { return delDia[t]; });
       let alguna = false;
       turnos.forEach(function (t) {
         const h = delDia[t];
-        const jef = _ucUbicaciones(h.editable || h.original, obj);
-        const cab = _ucUbicaciones(h.original, obj);
-        const notas = [];
-        jef.novedades.forEach(function (n) { notas.push('Novedades' + (n ? ': ' + n : '')); });
-        if (jef.cajas.length) {
+        const u = _ucUbicaciones(h.editable || h.original, h.original, obj);
+        const nov = u.novedades.map(function (n) { return 'Novedades' + (n ? ': ' + n : ''); });
+        if (u.cajas.length) {
           alguna = true;
-          const etJ = jef.cajas.map(function (c) { return c.etiqueta; });
-          const etC = cab.cajas.map(function (c) { return c.etiqueta; });
-          const mismo = etC.length === etJ.length && etC.every(function (e) { return etJ.indexOf(e) >= 0; });
-          if (!mismo) notas.unshift(etC.length ? 'Cabina lo tenía en ' + etC.join(' + ') : 'Cabina no lo tenía programado');
-          if (jef.cajas.length > 1) notas.push('estuvo en ' + jef.cajas.length + ' cajas');
-          jef.cajas.forEach(function (c) { resumen[c.etiqueta] = (resumen[c.etiqueta] || 0) + 1; });
-          filas.push({ fecha: fechaTxt, iso: k, turno: t, cajas: jef.cajas, prog: prog, notas: notas, tipo: 'caja' });
-        } else if (cab.cajas.length) {
+          u.cajas.forEach(function (c, i) {
+            const cod = c.codigo ? c.ct + ' ' + c.codigo : '';
+            if (cod) resumen[cod] = (resumen[cod] || 0) + 1;
+            filas.push({ fecha: fechaTxt, iso: k, turno: t, ct: c.ct, codigo: c.codigo, sector: c.sector,
+              temprano: c.temprano, nota: i === 0 ? nov.join(' · ') : '', tipo: 'caja' });
+          });
+        } else if (nov.length) {
           alguna = true;
-          notas.unshift('Cabina lo tenía en ' + cab.cajas.map(function (c) { return c.etiqueta; }).join(' + ') + ', en Jefes no figura');
-          filas.push({ fecha: fechaTxt, iso: k, turno: t, cajas: [], prog: prog, notas: notas, tipo: 'no-estuvo' });
-        } else if (jef.novedades.length) {
-          alguna = true;
-          filas.push({ fecha: fechaTxt, iso: k, turno: t, cajas: [], prog: prog, notas: notas, tipo: 'novedad' });
+          filas.push({ fecha: fechaTxt, iso: k, turno: t, ct: '', codigo: '', sector: '', temprano: false,
+            nota: nov.join(' · '), tipo: 'novedad' });
         }
       });
       if (!alguna) {
-        const nota = turnos.length
-          ? (prog ? _ucTextoCodigoProg(prog) + ' · no figura en la hoja' : 'no figura en la hoja')
-          : (prog ? 'sin hoja guardada · ' + _ucTextoCodigoProg(prog) : 'sin hoja guardada');
-        filas.push({ fecha: fechaTxt, iso: k, turno: '', cajas: [], prog: prog, notas: [nota],
-          tipo: (prog === 'F' || prog === 'LAO' || prog === 'LIC') ? 'franco' : (turnos.length ? 'no-figura' : 'sin-hoja') });
+        let prog = '';
+        try {
+          if (obj.legajo && hayProgMes(cur.getMonth(), cur.getFullYear())) {
+            prog = codigoProgDelDia(obj.legajo, cur.getDate(), cur.getMonth(), cur.getFullYear());
+          }
+        } catch (e) {}
+        const libre = prog === 'F' ? 'Franco' : (prog === 'LAO' ? 'Licencia (LAO)' : (prog === 'LIC' ? 'Licencia' : ''));
+        const nota = libre || (turnos.length ? 'no figura en la hoja' : 'sin hoja guardada');
+        filas.push({ fecha: fechaTxt, iso: k, turno: '', ct: '', codigo: '', sector: '', temprano: false,
+          nota: nota, tipo: libre ? 'franco' : (turnos.length ? 'no-figura' : 'sin-hoja') });
       }
       cur.setDate(cur.getDate() + 1);
     }
@@ -7029,9 +7132,7 @@
     const panel = document.getElementById('panel-cajas-cajero');
     if (!panel) return;
     const dl = document.getElementById('uc-lista-nombres');
-    if (dl) {
-      dl.innerHTML = _ucCandidatos().map(function (n) { return '<option value="' + _ucEsc(n) + '"></option>'; }).join('');
-    }
+    if (dl) dl.innerHTML = _ucCandidatos().map(function (n) { return '<option value="' + _ucEsc(n) + '"></option>'; }).join('');
     const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
     if (d && h && !d.value && !h.value) {
       const per = periodoLiquidacionHE();
@@ -7101,44 +7202,31 @@
       return;
     }
     const r = calcularCajasPorCajero(obj, desde, hasta);
-    window._ucUltimo = { persona: obj.mostrar, desde: desde, hasta: hasta, res: r };
+    window._ucUltimo = { persona: obj.mostrar, desde: desde, hasta: hasta };
 
-    const estiloTipo = {
-      'caja': '',
-      'no-estuvo': 'color:#c62828',
-      'novedad': 'color:#6a1b9a',
-      'franco': 'color:#2e7d32',
-      'no-figura': 'color:#888',
-      'sin-hoja': 'color:#aaa;font-style:italic'
-    };
+    const estiloTipo = { 'novedad': 'color:#6a1b9a', 'franco': 'color:#2e7d32', 'no-figura': 'color:#888', 'sin-hoja': 'color:#aaa;font-style:italic' };
     let html = '<p style="margin:4px 0 8px;font-weight:800;color:#5c4033;font-size:0.9rem">' + _ucEsc(obj.mostrar) +
       (obj.legajo ? '' : ' <span style="font-weight:600;color:#c62828;font-size:0.75rem">(sin legajo: se busca por nombre)</span>') + '</p>';
     html += '<div class="rank-wrap"><table><thead><tr>' +
-      '<th>Fecha</th><th>Turno</th><th>Caja</th><th>CT</th><th>Nota</th>' +
+      '<th>Fecha</th><th>Turno</th><th>CT</th><th>Caja</th><th title="Salida temprano">⏱</th><th>Nota</th>' +
       '</tr></thead><tbody>';
     let mesPrev = '';
     r.filas.forEach(function (f) {
       const mes = f.iso.slice(0, 7);
       const sepMes = (mesPrev && mes !== mesPrev) ? 'border-top:2px solid #8a7355;' : '';
       mesPrev = mes;
-      const est = estiloTipo[f.tipo] || '';
-      const cajaTxt = f.cajas.length ? f.cajas.map(function (c) { return _ucEsc(c.etiqueta); }).join('<br>') : '—';
-      const ctTxt = f.cajas.length
-        ? f.cajas.map(function (c) {
-            const ct = c.ct || '—';
-            const dif = f.prog && c.ct && c.ct !== f.prog;
-            return '<b>' + _ucEsc(ct) + '</b>' + (dif
-              ? ' <s style="color:#c62828;font-size:0.85em" title="Programación de Cajeros: ' + _ucEsc(f.prog) + '">' + _ucEsc(f.prog) + '</s>'
-              : ((!c.ct && f.prog) ? ' <span style="color:#888;font-size:0.85em" title="Programación de Cajeros">(' + _ucEsc(f.prog) + ')</span>' : ''));
-          }).join('<br>')
-        : (f.prog ? '<span style="color:#888">' + _ucEsc(f.prog) + '</span>' : '—');
       const finde = /^(sáb|dom)/.test(f.fecha) ? 'background:#faf6ee;' : '';
+      const est = estiloTipo[f.tipo] || '';
+      const caja = f.codigo
+        ? '<b>' + _ucEsc(f.codigo) + '</b>'
+        : (f.sector ? '<span style="color:#888" title="Sector sin código de caja">' + _ucEsc(f.sector) + '</span>' : '—');
       html += '<tr style="' + sepMes + finde + '">' +
         '<td style="font-variant-numeric:tabular-nums">' + _ucEsc(f.fecha) + '</td>' +
         '<td>' + (f.turno ? _ucEsc(f.turno) : '—') + '</td>' +
-        '<td style="' + est + (f.cajas.length ? ';font-weight:700' : '') + '">' + cajaTxt + '</td>' +
-        '<td>' + ctTxt + '</td>' +
-        '<td style="white-space:normal;max-width:300px;font-size:0.72rem;' + est + '">' + _ucEsc(f.notas.join(' · ')) + '</td>' +
+        '<td><b>' + (f.ct ? _ucEsc(f.ct) : '—') + '</b></td>' +
+        '<td title="' + _ucEsc(f.sector) + '">' + caja + '</td>' +
+        '<td style="text-align:center">' + (f.temprano ? '⏱' : '') + '</td>' +
+        '<td style="white-space:normal;max-width:260px;font-size:0.72rem;' + est + '">' + _ucEsc(f.nota) + '</td>' +
         '</tr>';
     });
     html += '</tbody></table></div>';
@@ -7155,9 +7243,8 @@
       html += '<p style="color:#666;font-size:0.8rem;margin:0">No figura en ninguna caja de las hojas guardadas de este período.</p>';
     }
     html += '<p style="margin-top:10px;font-size:0.72rem;color:#888;max-width:460px">' +
-      '<b>Caja</b> = hoja Jefes (lo que pasó). Si Cabina lo tenía en otra, se aclara en la nota.<br>' +
-      '<b>CT</b> = el de la fila en Jefes (o el del bloque de arriba). <s style="color:#c62828">Tachado</s> = lo que tenía en la programación de Cajeros, si es distinto.<br>' +
-      'Solo cuentan las fechas guardadas en el historial (💾).</p>';
+      'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). ⏱ = salida temprano.<br>' +
+      'Cajas: Castito A (PA) · E (PI) · B (PB) · PF · VF · VTE · VTB. Caja Central y Poker no tienen código.</p>';
     body.innerHTML = html;
   }
 
@@ -10964,6 +11051,10 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
       planta.secciones.forEach((sec, sIdx) => {
         const seccion = document.createElement('div');
         seccion.className = 'seccion';
+        if (modo === 'original') {
+          const prefCaja = prefijoCaja(planta.nombre, sec.titulo);
+          if (prefCaja) seccion.setAttribute('data-caja-pref', prefCaja);
+        }
         const titulo = document.createElement('div');
         titulo.className = 'seccion-titulo';
         const tituloTexto = document.createElement('span');
@@ -11190,6 +11281,12 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
           const nomWrap = document.createElement('div');
           nomWrap.className = 'nombre-wrap';
           nomWrap.appendChild(selectNombre);
+          // Código de caja chiquito (solo hoja Cabina): lo completa actualizarCodigosCajaCabina()
+          if (modo === 'original' && !esNovedades && prefijoCaja(planta.nombre, sec.titulo)) {
+            const codCaja = document.createElement('span');
+            codCaja.className = 'marca-caja-cod';
+            nomWrap.appendChild(codCaja);
+          }
           // Ícono ⏱ salida temprano: oculto en tablero (solo registros / admin vía ranking)
           // Marca suave en CASTITO PB: punto + "pasa a Venta de Tickets" (solo si no hay otro duplicado)
           if (
@@ -11787,6 +11884,7 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
         });
       });
     } catch (e) { console.warn('filas vacias', e); }
+    actualizarCodigosCajaCabina();
   }
   ['change', 'input', 'click', 'keyup'].forEach(function (ev) {
     document.addEventListener(ev, function () { setTimeout(marcarFilasVacias, 30); }, true);
