@@ -57,11 +57,12 @@
     }
     /* TARDE JEFES: beige un poco más oscuro */
     body.solo-lectura .btn-reg,
-    body.solo-lectura .btn-cierre,
     body.solo-lectura .btn-unlock {
       opacity: 0.45;
       pointer-events: none;
     }
+    body.solo-lectura .btn-cierre { opacity: 0.45; }
+    .btn.btn-cierre-bloqueado.btn-disabled { cursor: help; }
     body.modo-editable {
       background: var(--bg-jefes-tarde);
       color: var(--text);
@@ -12304,21 +12305,32 @@ if (pack.auditoria && Array.isArray(pack.auditoria) && pack.auditoria.length) {
     const esUsuarioJefePiso = !!(sesionActual && sesionActual.user && !sesionActual.esAdmin &&
       !sesionActual.puedeCabina && !sesionActual.puedeCierreFinal);
     const enPosicionCierre = !!enJefes && turnoVistaCierre === 'NOCHE';
-    const mostrarCierre = enPosicionCierre && !yaCerradoCierre && esPersonalCabinaCierre && !esUsuarioJefePiso;
+    const horarioCierreOk = !(typeof cierreFinalHabilitado === 'function' && !cierreFinalHabilitado(fechaVistaCierre()));
+    const mostrarCierre = enPosicionCierre && !yaCerradoCierre && esPersonalCabinaCierre && !esUsuarioJefePiso && horarioCierreOk;
     setBtn('.btn-cierre', mostrarCierre);
+    // 🔒 gris pero tocable: al tocarlo explica por qué todavía no se puede (cierreFinalFecha lee data-motivo).
+    // Un botón desactivado no muestra el cartelito al pasar el mouse ni responde al dedo en la tablet.
     try {
       document.querySelectorAll('.btn-cierre').forEach(function (btn) {
+        let motivo = '';
         if (yaCerradoCierre) {
-          btn.title = 'Fecha ya cerrada. Usá 🔓 para desbloquear.';
-        } else if (esUsuarioJefePiso) {
-          btn.title = 'Cierre final: solo personal de cabina';
+          motivo = 'Esta fecha ya tiene el cierre final.\nSi necesitás corregir, usá 🔓 para desbloquear.';
+        } else if (!(sesionActual && sesionActual.user)) {
+          motivo = 'Para hacer el cierre final, iniciá sesión con un usuario de Cabina (👤).';
+        } else if (esUsuarioJefePiso || !esPersonalCabinaCierre) {
+          motivo = 'El cierre final lo hace solo el personal de Cabina.\nTu usuario no tiene ese permiso.';
         } else if (!enPosicionCierre) {
-          btn.title = 'Cierre final: hoja JEFES + turno NOCHE';
-        } else if (typeof cierreFinalHabilitado === 'function' && !cierreFinalHabilitado(fechaVistaCierre())) {
-          btn.title = 'Cierre final: se habilita el ' + textoCierreFinalDesde(fechaVistaCierre());
-        } else {
-          btn.title = 'Cierre final de la fecha (TARDE + NOCHE)';
+          motivo = 'El cierre final se hace desde la hoja JEFES, turno NOCHE.\n' +
+            'Ahora estás en ' + (enJefes ? 'JEFES' : 'CABINA') + ' — ' + turnoVistaCierre + '.';
+        } else if (!horarioCierreOk) {
+          motivo = 'Todavía no se puede hacer el cierre final de esta fecha.\n' +
+            'Se habilita el ' + textoCierreFinalDesde(fechaVistaCierre()) + '.';
         }
+        btn.disabled = false;
+        btn.classList.toggle('btn-disabled', !!motivo);
+        btn.classList.toggle('btn-cierre-bloqueado', !!motivo);
+        if (motivo) btn.setAttribute('data-motivo', motivo); else btn.removeAttribute('data-motivo');
+        btn.title = motivo ? (motivo.split('\n')[0] + ' (tocá 🔒 para ver)') : 'Cierre final de la fecha (TARDE + NOCHE)';
       });
     } catch (eTit) {}
     setBtn('#btnHistorial', esCabina);
@@ -14894,6 +14906,11 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     const silencioso = !!opts.silencioso; // ya confirmó en otra pregunta (login cabina)
     const irJefesTarde = !!opts.irJefesTarde;
 
+    // 🔒 gris: explicar por qué todavía no se puede
+    if (!silencioso) {
+      const btnC = document.querySelector('.btn-cierre[data-motivo]');
+      if (btnC) { alert(btnC.getAttribute('data-motivo')); return; }
+    }
     if (cierreFinalActivo && !accesoLibre) {
       if (!silencioso) {
         alert('Fecha ya cerrada.\nSi necesitás corregir, usá 🔓 para desbloquear.');
@@ -17526,7 +17543,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026112605', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026112606', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
