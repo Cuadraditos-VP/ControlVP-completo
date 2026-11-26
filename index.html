@@ -7084,6 +7084,14 @@
     return { legajo: null, nombreNorm: q, mostrar: t };
   }
 
+  /** "Caja Central PI" → "CC", "Poker PB" → "PK" (sectores sin CJ, en la grilla angosta) */
+  function abreviarSectorUC(sector) {
+    const t = _ucNorm(sector);
+    if (t.indexOf('CAJA CENTRAL') === 0) return 'CC';
+    if (t.indexOf('POKER') === 0) return 'PK';
+    return t.split(' ').map(function (w) { return w.charAt(0); }).join('');
+  }
+
   /** Fondo y letra del CT (los mismos colores de 🎨 que en las cajas) */
   function _ucEstiloCT(ct) {
     const c = String(ct || '').trim().toUpperCase();
@@ -7150,12 +7158,8 @@
     if (!panel) return;
     window._ucCands = _ucCandidatos();
     ucCerrarLista();
-    const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
-    if (d && h && !d.value && !h.value) {
-      const r = _ucRangoUnMes(new Date());
-      d.value = _ucFechaISO(r.desde);
-      h.value = _ucFechaISO(r.hasta);
-    }
+    const h = document.getElementById('uc-hasta');
+    if (h && !h.value) h.value = _ucFechaISO(new Date());
     panel.classList.add('visible');
     const inp = document.getElementById('uc-persona');
     if (inp) setTimeout(function () { inp.focus(); inp.select(); }, 30);
@@ -7243,28 +7247,21 @@
     const box = document.getElementById('panel-cajas-cajero-box');
     if (box) box.classList.toggle('maximizado');
   }
-  /** Del mismo día del mes anterior hasta la fecha dada (ej. 26/10 → 26/11) */
-  function _ucRangoUnMes(hasta) {
-    const h = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
-    const d = new Date(h.getFullYear(), h.getMonth() - 1, h.getDate());
-    // 31/03 → 31/02 no existe: queda en el último día de febrero
-    if (d.getDate() !== h.getDate()) d.setDate(0);
-    return { desde: d, hasta: h };
-  }
-  /** Hoy: último mes hasta hoy · ◀ ▶: corre todo el rango un mes */
+  const UC_DIAS = 31; // días que muestra la grilla (el último es "Hasta")
+  /** ◀ ▶: corren la grilla un día · Hoy: los últimos 31 días hasta hoy */
   function periodoCajasPorCajero(delta) {
-    const d = document.getElementById('uc-desde'), h = document.getElementById('uc-hasta');
-    if (!d || !h) return;
-    let r;
-    if (delta === 0) r = _ucRangoUnMes(new Date());
+    const h = document.getElementById('uc-hasta');
+    if (!h) return;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    let nueva;
+    if (delta === 0) nueva = hoy;
     else {
-      const base = _ucDeISO(h.value) || new Date();
-      const nueva = new Date(base.getFullYear(), base.getMonth() + delta, base.getDate());
-      if (nueva.getDate() !== base.getDate()) nueva.setDate(0);
-      r = _ucRangoUnMes(nueva);
+      const base = _ucDeISO(h.value) || hoy;
+      nueva = new Date(base.getFullYear(), base.getMonth(), base.getDate() + delta);
+      if (nueva > hoy) nueva = hoy; // no se pasa de hoy
     }
-    d.value = _ucFechaISO(r.desde);
-    h.value = _ucFechaISO(r.hasta);
+    h.value = _ucFechaISO(nueva);
     buscarCajasPorCajero();
   }
   function elegirPersonaUC(nombre) {
@@ -7277,19 +7274,15 @@
     const body = document.getElementById('uc-resultado');
     if (!body) return;
     const texto = (document.getElementById('uc-persona') || {}).value || '';
-    const desde = _ucDeISO((document.getElementById('uc-desde') || {}).value);
     const hasta = _ucDeISO((document.getElementById('uc-hasta') || {}).value);
+    const desde = hasta ? new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate() - (UC_DIAS - 1)) : null;
     window._ucUltimo = null;
     if (!String(texto).trim()) {
       body.innerHTML = '<p style="color:#666;font-size:0.85rem;margin:6px 0">Escribí un nombre o un legajo.</p>';
       return;
     }
-    if (!desde || !hasta || desde > hasta) {
-      body.innerHTML = '<p style="color:#c62828;font-size:0.85rem;margin:6px 0">Revisá las fechas: "desde" tiene que ser anterior o igual a "hasta".</p>';
-      return;
-    }
-    if ((hasta - desde) / 86400000 > 400) {
-      body.innerHTML = '<p style="color:#c62828;font-size:0.85rem;margin:6px 0">El período es muy largo (máximo un año).</p>';
+    if (!hasta) {
+      body.innerHTML = '<p style="color:#c62828;font-size:0.85rem;margin:6px 0">Elegí la fecha "Hasta".</p>';
       return;
     }
     const obj = _ucResolverPersona(texto);
@@ -7305,31 +7298,63 @@
     const r = calcularCajasPorCajero(obj, desde, hasta);
     window._ucUltimo = { persona: obj.mostrar, desde: desde, hasta: hasta };
 
-    const estiloTipo = { 'novedad': 'color:#6a1b9a', 'franco': 'color:#2e7d32', 'no-figura': 'color:#888', 'sin-hoja': 'color:#aaa;font-style:italic' };
-    let html = '<p style="margin:4px 0 8px;font-weight:800;color:#5c4033;font-size:0.9rem">' + _ucEsc(obj.mostrar) +
-      (obj.legajo ? '' : ' <span style="font-weight:600;color:#c62828;font-size:0.75rem">(sin legajo: se busca por nombre)</span>') + '</p>';
-    html += '<div class="rank-wrap"><table><thead><tr>' +
-      '<th>Fecha</th><th>CT</th><th title="Código de caja">CJ</th><th>Nota</th>' +
-      '</tr></thead><tbody>';
-    let mesPrev = '';
-    r.filas.forEach(function (f) {
-      const mes = f.iso.slice(0, 7);
-      const sepMes = (mesPrev && mes !== mesPrev) ? 'border-top:2px solid #8a7355;' : '';
-      mesPrev = mes;
-      const finde = /^(sáb|dom)/.test(f.fecha) ? 'background:#faf6ee;' : '';
-      const est = estiloTipo[f.tipo] || '';
-      const caja = f.codigo
-        ? _ucEsc(f.codigo)
-        : (f.sector ? '<span style="font-weight:400;opacity:0.75" title="Sector sin código de caja">' + _ucEsc(f.sector) + '</span>' : '—');
-      const colCt = _ucEstiloCT(f.ct);
-      html += '<tr style="' + sepMes + finde + '">' +
-        '<td style="font-variant-numeric:tabular-nums">' + _ucEsc(f.fecha) + '</td>' +
-        '<td style="font-weight:800;' + colCt + '">' + (f.ct ? _ucEsc(f.ct) : '—') + '</td>' +
-        '<td style="font-weight:800;' + colCt + '" title="' + _ucEsc(f.sector) + '">' + caja + '</td>' +
-        '<td style="white-space:normal;max-width:260px;font-size:0.72rem;' + est + '">' + _ucEsc(f.nota) + '</td>' +
-        '</tr>';
+    // Grilla horizontal: una columna por día (como las grillas de Jefes y Cajeros)
+    const DIAS_AB = ['DO', 'LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
+    const porDia = {};
+    r.filas.forEach(function (f) { (porDia[f.iso] = porDia[f.iso] || []).push(f); });
+    const hoyIso = _ucFechaISO(new Date());
+    const dias = [];
+    for (let i = 0; i < UC_DIAS; i++) {
+      dias.push(new Date(desde.getFullYear(), desde.getMonth(), desde.getDate() + i));
+    }
+    const thLab = 'position:sticky;left:0;z-index:2;background:#f0e9dc;text-align:right;padding:2px 6px';
+    const celda = 'text-align:center;padding:2px 3px;min-width:34px;line-height:1.25;border-left:1px solid #e8e0d0;';
+    let fDias = '', fCt = '', fCj = '';
+    dias.forEach(function (d) {
+      const iso = _ucFechaISO(d);
+      const items = porDia[iso] || [];
+      const finde = d.getDay() === 0 || d.getDay() === 6;
+      let feriado = false;
+      try { feriado = esFeriadoProg(d.getDate(), d.getMonth(), d.getFullYear()); } catch (e) {}
+      const esHoy = iso === hoyIso;
+      const primeroMes = d.getDate() === 1 ? 'border-left:2px solid #8a7355;' : '';
+      const fondoDia = feriado ? 'background:#c62828;color:#fff;' : (finde ? 'background:#e6dccb;' : '');
+      const tituloDia = DIAS_AB[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() + (feriado ? ' · feriado' : '');
+      fDias += '<th style="' + celda + primeroMes + fondoDia + (esHoy ? 'outline:2px solid #6a1b9a;outline-offset:-2px;' : '') + '" title="' + tituloDia + '">' +
+        DIAS_AB[d.getDay()] + '<br>' + d.getDate() + '</th>';
+      const notas = items.map(function (f) { return f.nota; }).filter(Boolean).join(' · ');
+      const tip = _ucEsc(tituloDia + (notas ? ' — ' + notas : ''));
+      const conCaja = items.filter(function (f) { return f.ct || f.codigo || f.sector; });
+      const fondoVacio = finde ? 'background:#faf6ee;' : '';
+      if (conCaja.length) {
+        // Uno por línea (si estuvo en dos cajas o en TARDE y NOCHE)
+        fCt += '<td style="' + celda + primeroMes + 'padding:0" title="' + tip + '">' + conCaja.map(function (f) {
+          return '<div style="font-weight:800;padding:2px 3px;' + _ucEstiloCT(f.ct) + '">' + (f.ct ? _ucEsc(f.ct) : '—') + '</div>';
+        }).join('') + '</td>';
+        fCj += '<td style="' + celda + primeroMes + 'padding:0" title="' + tip + '">' + conCaja.map(function (f) {
+          const txt = f.codigo ? _ucEsc(f.codigo) : '<span style="font-weight:400;opacity:0.75">' + _ucEsc(abreviarSectorUC(f.sector)) + '</span>';
+          return '<div style="font-weight:800;padding:2px 3px;' + _ucEstiloCT(f.ct) + '">' + txt + '</div>';
+        }).join('') + '</td>';
+      } else {
+        // Sin caja: franco / licencia / novedad / no figura / sin hoja
+        const f = items[0] || { tipo: 'sin-hoja', nota: 'sin hoja guardada' };
+        let ct = '', est = 'color:#bbb;';
+        if (f.tipo === 'franco') { ct = /Franco/.test(f.nota) ? 'F' : (/LAO/.test(f.nota) ? 'LAO' : 'LIC'); est = 'color:#2e7d32;font-weight:700;'; }
+        else if (f.tipo === 'novedad') { ct = 'NOV'; est = 'color:#6a1b9a;font-weight:700;'; }
+        else if (f.tipo === 'no-figura') { ct = '·'; est = 'color:#888;'; }
+        fCt += '<td style="' + celda + primeroMes + fondoVacio + est + '" title="' + tip + '">' + ct + '</td>';
+        fCj += '<td style="' + celda + primeroMes + fondoVacio + '" title="' + tip + '"></td>';
+      }
     });
-    html += '</tbody></table></div>';
+    const f2 = function (d) { return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); };
+    let html = '<p style="margin:4px 0 8px;font-weight:800;color:#5c4033;font-size:0.9rem">' + _ucEsc(obj.mostrar) +
+      (obj.legajo ? '' : ' <span style="font-weight:600;color:#c62828;font-size:0.75rem">(sin legajo: se busca por nombre)</span>') +
+      ' <span style="font-weight:600;color:#888;font-size:0.78rem">· ' + f2(desde) + ' al ' + f2(hasta) + '</span></p>';
+    html += '<div style="max-width:100%;overflow-x:auto"><table class="uc-grilla" style="border-collapse:collapse"><tbody>' +
+      '<tr><th style="' + thLab + '"></th>' + fDias + '</tr>' +
+      '<tr><th style="' + thLab + '">CT</th>' + fCt + '</tr>' +
+      '<tr><th style="' + thLab + '" title="Código de caja">CJ</th>' + fCj + '</tr>' +
+      '</tbody></table></div>';
 
     const claves = Object.keys(r.resumen).sort(function (a, b) { return r.resumen[b] - r.resumen[a] || a.localeCompare(b, 'es'); });
     const total = claves.reduce(function (s, k) { return s + r.resumen[k]; }, 0);
@@ -7346,6 +7371,7 @@
     }
     html += '<p style="margin-top:10px;font-size:0.72rem;color:#888;max-width:460px">' +
       'Sale de la hoja <b>Jefes</b> de cada fecha guardada (💾). <b>CJ</b> = código de caja.<br>' +
+      '<b style="color:#2e7d32">F</b> franco · <b style="color:#2e7d32">LAO</b>/<b style="color:#2e7d32">LIC</b> licencia · <b style="color:#6a1b9a">NOV</b> novedades · <b>·</b> no figura en la hoja · vacío = sin hoja guardada. Pasá el mouse por un día para ver el detalle.<br>' +
       'CJ: Castito A (PA) · E (PI) · B (PB) · PF · VF · VTE · VTB. Caja Central y Poker no tienen CJ.</p>';
     body.innerHTML = html;
   }
@@ -7359,10 +7385,11 @@
     const f = function (d) { return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); };
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Cajas por cajero</title>' +
       '<style>body{font-family:Segoe UI,system-ui,sans-serif;color:#1f1a14;margin:18px}' +
-      'table{border-collapse:collapse;font-size:12px;margin-bottom:10px}th,td{border:1px solid #ccc;padding:3px 7px;text-align:left;vertical-align:top}' +
+      'table{border-collapse:collapse;font-size:11px;margin-bottom:10px}th,td{border:1px solid #ccc;padding:2px 4px;vertical-align:middle}' +
+      '@page{size:landscape}' +
       'th{background:#f0e9dc}td.num,th.num{text-align:right}h2{margin:0 0 4px;font-size:16px}' +
       '*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
-      '<h2>Cajas por cajero</h2><div style="font-size:12px;margin-bottom:8px">Período: ' + f(u.desde) + ' al ' + f(u.hasta) + '</div>' +
+      '<h2>Cajas por cajero</h2>' +
       body.innerHTML + '</body></html>');
     w.document.close();
     w.focus();
@@ -16938,14 +16965,12 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
             <div id="uc-lista" style="display:none;position:absolute;top:100%;left:0;z-index:20;width:260px;max-height:280px;overflow:auto;background:#fffdf8;border:2px solid #8a7355;box-shadow:0 8px 20px rgba(0,0,0,0.2);font-size:0.82rem"></div>
           </span>
         </span>
-        <label style="display:flex;align-items:center;gap:4px">Desde
-          <input type="date" id="uc-desde" style="padding:4px;border:2px solid #c9b99a" onchange="buscarCajasPorCajero()"></label>
-        <label style="display:flex;align-items:center;gap:4px">Hasta
-          <input type="date" id="uc-hasta" style="padding:4px;border:2px solid #c9b99a" onchange="buscarCajasPorCajero()"></label>
-        <span style="display:flex;gap:4px">
-          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un mes antes" onclick="event.stopPropagation();periodoCajasPorCajero(-1)">◀</button>
-          <button type="button" class="btn" style="min-width:auto;min-height:30px;padding:3px 10px;background:#6a1b9a;font-size:0.78rem" title="Último mes hasta hoy" onclick="event.stopPropagation();periodoCajasPorCajero(0)">Hoy</button>
-          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un mes después" onclick="event.stopPropagation();periodoCajasPorCajero(1)">▶</button>
+        <span style="display:flex;align-items:center;gap:4px">
+          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un día antes" onclick="event.stopPropagation();periodoCajasPorCajero(-1)">◀</button>
+          <label style="display:flex;align-items:center;gap:4px" title="Último día de los 31 que se muestran">Hasta
+            <input type="date" id="uc-hasta" style="padding:4px;border:2px solid #c9b99a" onchange="buscarCajasPorCajero()"></label>
+          <button type="button" class="btn" style="min-width:32px;min-height:30px;padding:3px 8px;background:#5c4033" title="Un día después" onclick="event.stopPropagation();periodoCajasPorCajero(1)">▶</button>
+          <button type="button" class="btn" style="min-width:auto;min-height:30px;padding:3px 10px;background:#6a1b9a;font-size:0.78rem" title="Los últimos 31 días hasta hoy" onclick="event.stopPropagation();periodoCajasPorCajero(0)">Hoy</button>
         </span>
         <button type="submit" class="btn" style="min-width:auto;min-height:30px;padding:3px 12px;background:#1565c0;font-size:0.8rem">Buscar</button>
       </form>
@@ -17543,7 +17568,7 @@ try { registrarAuditoria('guardar', 'Guardó historial (' + hoja + '). Turnos: '
     return;
   }
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-tablero.js?v=2026112606', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw-tablero.js?v=2026112607', { updateViaCache: 'none' })
       .then(function (reg) {
         console.info('PWA SW OK', reg.scope, '2026101201');
         try { reg.update(); } catch (e) {}
